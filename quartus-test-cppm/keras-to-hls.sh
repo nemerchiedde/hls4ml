@@ -97,7 +97,7 @@ do
    echo "KerasH5:   ./models/${h5}.h5" >> ${file}
    echo "OutputDir: ${basedir}/${base}-${pycmd}-${xilinxpart//${sanitizer}/_}-c${clock}-${io}-rf${rf}-${type//${sanitizer}/_}-${strategy}" >> ${file}
    echo "ProjectName: myproject" >> ${file}
-   echo "FPGApart: ${fpgapart}" >> ${file}
+   echo "FPGAPart: ${fpgapart}" >> ${file}
    echo "ClockPeriod: ${clock}" >> ${file}
    echo "Backend: ${backend}" >> ${file}
    echo "" >> ${file}

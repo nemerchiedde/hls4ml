@@ -444,7 +444,7 @@ class QuartusWriter(Writer):
 
             line = line.replace('myproject',model.config.get_project_name())
 
-            if 'DEVICE :=' in line:
+            if 'DEVICE   :=' in line:
                 line = 'DEVICE := {}\n'.format(model.config.get_config_value('FPGAPart'))
 
             fout.write(line)
