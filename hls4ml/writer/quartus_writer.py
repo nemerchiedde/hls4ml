@@ -130,8 +130,8 @@ class QuartusWriter(Writer):
                             name = var.definition_cpp_name()
                             newline += '    ' + 'hls_register outputdat ' + name + ';\n'
                             var.name += '.data'
-                    if layer.get_attr('activation') == 'tanh':
-                        layer.set_attr('activation') == 'dense_tanh'
+                 #   if layer.get_attr('activation') == 'tanh':
+                 #       layer.set_attr('activation') == 'dense_tanh'
                     func = layer.function_cpp()
                     if func:
                         for line in func:
