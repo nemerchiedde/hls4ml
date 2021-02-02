@@ -14,7 +14,7 @@
 # Lines starting with "#" are ignored.
 #
 
-KERAS_LSTM c:400 f:1SG280HU2F50E2VG
+KERAS_LSTM c:2.5 f:1SG280HU2F50E2VG
 #KERAS_1layer 
 #KERAS_3layer 
 #KERAS_3layer_batch_norm 
