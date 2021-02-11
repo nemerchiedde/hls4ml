@@ -31,6 +31,18 @@ function run_quartus {
    return ${failed}
 }
 
+function run_ctest {
+   dir=$1
+   echo "Building project in ${dir}"
+   cd ${dir}
+   cmd="make myproject-ctest"
+   eval ${cmd}
+   if [ $? -eq 1 ]; then
+      touch BUILD_FAILED
+   fi
+   cd ..
+   return ${failed}
+}
 function run_simulation {
    dir=$1
    echo "Running sim in ${dir}"
@@ -44,7 +56,7 @@ function run_simulation {
    return ${failed}
 }
 
-while getopts ":d:nh" opt; do
+while getopts ":d:nhis" opt; do
    case "$opt" in
    d) basedir=$OPTARG
       ;;
@@ -53,6 +65,9 @@ while getopts ":d:nh" opt; do
    h)
       print_usage
       exit
+      ;;
+   s)
+      ctest=true
       ;;
    :)
       echo "Option -$OPTARG requires an argument."
@@ -78,7 +93,14 @@ for archive in *.tar.gz ; do
    slashes="${tarpath//[^\/]}"
    mkdir -p "${dir}" && tar -xzf "${archive}" -C "${dir}" --strip-components ${#slashes}
 done
-
+#run ctest
+# Run sequentially
+if [ ctest ]; then
+  for dir in *-"build" ; do
+     run_ctest "${dir}"
+  done
+  exit ${failed}
+fi
 # Run sequentially
 for dir in *-"build" ; do
    run_quartus "${dir}"
