@@ -895,6 +895,7 @@ class QuartusWriter(Writer):
          #recurrent_activation = 0
          #x = dstpath.replace('//hls_fpga insert recurrent_activation Gate I --- Gate I','\tnnet::'+ layer_activation +'<data_T,data_T,CONFIG_T>(x_c, cell_activation); //hls_fpga insert activation --- Gate I\n')
 
+
          while i < taille_my_lines:
 
             actv_gate_x_c = my_lines[i].find('//hls_fpga insert activation  --- Gate X_C')
