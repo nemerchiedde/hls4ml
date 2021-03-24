@@ -5,6 +5,7 @@ import json
 import math
 
 from hls4ml.model import HLSModel
+#from hls4ml.writer.quartus_writer import write_activation_lstm
 
 MAXMULT = 4096
 
@@ -20,7 +21,7 @@ class KerasFileReader(object):
     def _find_data(self, layer_name, var_name):
         def h5_visitor_func(name):
             if var_name in name:
-                return name
+                return name 
 
         if 'model_weights' in list(self.h5file.keys()): # h5 file comes from model.save()
             layer_path = 'model_weights/{}'.format(layer_name)
@@ -95,6 +96,7 @@ def register_keras_layer_handler(layer_name, handler_func):
         layer_handlers[layer_name] = handler_func
 
 def get_supported_keras_layers():
+    #print(list(layer_handlers.keys()))  ##['Conv1D', 'Conv2D', 'InputLayer', 'Reshape', 'Dense', 'BinaryDense', 'TernaryDense', 'Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'BatchNormalization', 'LSTM', 'Add', 'Subtract', 'Multiply', 'Average', 'Maximum', 'Minimum', 'Concatenate', 'MaxPooling1D', 'MaxPooling2D', 'AveragePooling1D', 'AveragePooling2D']
     return list(layer_handlers.keys())
 
 def keras_handler(*args):
@@ -114,13 +116,62 @@ def parse_default_keras_layer(keras_layer, input_names):
 
     if 'activation' in keras_layer['config']:
         layer['activation'] = keras_layer['config']['activation']
+
     if 'epsilon' in keras_layer['config']:
         layer['epsilon'] = keras_layer['config']['epsilon']
 
     return layer
+"""
+def modification_activation_lstm(layer_rec_activation,layer_activation):
+    with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","r") as myfile:
+        my_lines = myfile.readlines()
+       
+        
+    taille_my_lines=len(my_lines)
+    i = 0
+    while i < taille_my_lines:
+       actv = my_lines[i].find('//activation')
+       rec_actv = my_lines[i].find('//recurrent_activation')
 
+       if actv != -1:
+           first_split_actv = my_lines[i].split("::")[1]
+           second_split_actv = first_split_actv.split("<data_T")
+           if second_split_actv[0] == layer_activation[0]:
+              res = my_lines[i]
+              print(res, 'qual é a linha1')
+           else:
+              second_split_actv[0] = layer_activation[0]
+              res = "\tnnet::" + "<data_T".join(second_split_actv)
+              print(res, 'qual é a linha2')
+          
+       elif rec_actv != -1:
+           first_split_ractv = my_lines[i].split("::")[1]
+           second_split_ractv = first_split_ractv.split("<data_T")
+           if second_split_ractv[0] == layer_rec_activation:
+              res = my_lines[i]
+              print(res, 'qual é a linha1')
+           else:
+              second_split_ractv[0] = layer_rec_activation
+              res = "\tnnet::" + "<data_T".join(second_split_ractv)
+              print(res, 'qual é a linha2')
+          
+       else:
+           res = my_lines[i]
+       my_lines[i] = res
+       i += 1    
+         
+    with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","w") as myfile:
+        myfile.writelines(my_lines)
 
-def keras_to_hls(config):
+   
+    print('Activation and Rec Activation', layer_activation, layer_rec_activation)
+    print('My_lines',my_lines)
+    return
+    """
+
+activation_type = []
+
+def keras_to_hls(config): #__init__.py et a config vem do yml
 
     ######################
     ##  Do translation
@@ -128,17 +179,19 @@ def keras_to_hls(config):
 
     #This is a list of dictionaries to hold all the layer info we need to generate HLS
     layer_list = []
-
+    #print ('keras_to_hls',config)
     if 'KerasModel' in config:
         # Model instance passed in config from API
         model_arch = json.loads(config['KerasModel'].to_json())
         reader = KerasModelReader(config['KerasModel'])
-    elif 'KerasJson' in config:
+    elif 'KerasJson' in config:                                              ##Usamos este
         # Extract model architecture from json
         with open(config['KerasJson']) as json_file:
             model_arch = json.load(json_file)
         reader = KerasFileReader(config)
+        #print("reader",reader)
     elif 'KerasH5' in config:
+        print("terceiro")
         # Model arch and weights are in H5 file (from model.save() function)
         with h5py.File(config['KerasH5'], mode='r') as h5file:
             # Load the configuration from h5 using json's decode
@@ -151,7 +204,8 @@ def keras_to_hls(config):
     else:
         raise ValueError('No model found in config file.')
 
-    #print(model_arch)
+    #print('JSON', model_arch)
+
 
     #Define layers to skip for conversion to HLS
     skip_layers = ['Dropout', 'Flatten']
@@ -168,19 +222,25 @@ def keras_to_hls(config):
     output_layers = None
 
     layer_config = None
-    if model_arch['class_name'] == 'Sequential':
+    layer_activation = []
+
+    if model_arch['class_name'] == 'Sequential':  #model_arch contem o json
         print('Interpreting Sequential')
         layer_config = model_arch['config']
+        #print("Layer Config JSON",layer_config)
         if 'layers' in layer_config: # Newer Keras versions have 'layers' in 'config' key
             layer_config = layer_config['layers']
-        # Sequential doesn't have InputLayer
-        input_layer = {}
-        input_layer['name'] = 'input1'
-        input_layer['class_name'] = 'InputLayer'
-        input_layer['input_shape'] = layer_config[0]['config']['batch_input_shape'][1:]
-        layer_list.append(input_layer)
-        print('Input shape:', input_layer['input_shape'])
-    elif model_arch['class_name'] == 'Model':
+            #print('Layer_config:',layer_config[0]['class_name'])
+       
+        if layer_config[0]['class_name'] != 'InputLayer':
+            input_layer = {}
+            input_layer['name'] = 'input1'
+            input_layer['class_name'] = 'InputLayer'
+            input_layer['input_shape'] = layer_config[0]['config']['batch_input_shape'][1:]
+            layer_list.append(input_layer)
+            #print("Input shape:", input_layer['input_shape'])
+
+    elif model_arch['class_name'] in ['Model', 'Functional']:
         print('Interpreting Model')
         layer_config = model_arch['config']['layers']
         input_layers = [ inp[0] for inp in model_arch['config']['input_layers'] ]
@@ -198,6 +258,10 @@ def keras_to_hls(config):
     for keras_layer in layer_config:
         if 'batch_input_shape' in keras_layer['config']:
             input_shapes = [keras_layer['config']['batch_input_shape']]
+            #print('input_shapes',input_shapes, "keras_layer['config']",keras_layer['config'])
+            if 'recurrent_activation' in keras_layer['config']:
+                layer_rec_activation = keras_layer['config']['recurrent_activation']
+                #print('rec_activation',layer_rec_activation)
         else:
             if 'inbound_nodes' in keras_layer:
                 input_shapes = [output_shapes[inbound_node[0][0]] for inbound_node in keras_layer['inbound_nodes']]
@@ -205,7 +269,7 @@ def keras_to_hls(config):
                 # Sequential model, so output_shape from the previous layer is still valid
                 input_shapes = [output_shape]
 
-        keras_class = keras_layer['class_name']
+        keras_class = keras_layer['class_name'] #InputLayer, LSTM, Dense
 
         if keras_class in skip_layers:
             if 'inbound_nodes' in keras_layer:
@@ -224,21 +288,28 @@ def keras_to_hls(config):
 
         if keras_class in supported_layers:
             layer_counter = layer_counter + 1
+        #print("layer_counter", layer_counter)
 
         #Extract inbound nodes
         if 'inbound_nodes' in keras_layer and len(keras_layer['inbound_nodes']) > 0:
             input_names = [ inputs_map.get(inp[0], inp[0]) for inp in keras_layer['inbound_nodes'][0] ]
         else:
             input_names = None
-
+        #print("keras_layer", keras_layer, "input_names", input_names,"input_shapes", input_shapes, "reader" ,  reader, "config", config)
         layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
-
-        print('Layer name: {}, layer type: {}, current shape: {}'.format(layer['name'], layer['class_name'], input_shapes))
+        #print('layer_handlers',layer_handlers[keras_class])
+        #print('Layer name: {}, layer type: {}, current shape: {}'.format(layer['name'], layer['class_name'], input_shapes))
         layer_list.append( layer )
-        if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax']:# + qkeras_layers:
+        #print('layer',layer)
+        #print('output_shape',output_shape)
+        #print("O que é 0:", layer['class_name'])
+        if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'LSTM']:# + qkeras_layers:
             act_layer = {}
+            #print("O que é 3:",layer['class_name'] )
             act_layer['name'] = layer['name'] + '_' + layer['activation']
             act_layer['activation'] = layer['activation']
+            #print('O que é 4:',act_layer['activation'])
+            #print('O que é 5:',act_layer)
             if 'activ_param' in layer:
                 act_layer['activ_param'] = layer['activ_param']
                 act_layer['class_name'] = layer['activation']
@@ -249,16 +320,157 @@ def keras_to_hls(config):
             inputs_map[layer['name']] = act_layer['name']
             if output_layers is not None and layer['name'] in output_layers:
                 output_layers = [act_layer['name'] if name == layer['name'] else name for name in output_layers]
+            #print('O que é 0',act_layer)
             layer_list.append(act_layer)
+            #print('O que é layer list',layer_list)
+            
+            #print('nemer chiedde')
+            #print('layer list 1', layer_list[1]['activation']) #recurrent_activation
+            
+            layer_activation.append(layer_list[1]['activation'])
+            layer_activation.append(layer_list[2]['activation'])
+            #print(layer_activation)  
+            #print (layer_rec_activation)
+            activation_type.append(layer_list[1]['activation'])
+            activation_type.append(layer_rec_activation)
+		
+
 
         assert(output_shape is not None)
-
+        #print("output_shape 0", output_shape)
         output_shapes[layer['name']] = output_shape
+        print("output_shape 1", output_shapes[layer['name']], layer['name'])
+
 
     #################
     ## Generate HLS
     #################
+    ## Read file lstm_cell.h
+    print( "activation",activation_type)
 
+    #write_activation_lstm(layer_rec_activation,layer_activation)
+    #modification_activation_lstm(layer_rec_activation,layer_activation)
+    """
+    with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","r") as myfile:
+         my_lines = myfile.readlines()
+
+    ## Rec_Activation line 220
+    my_line_0 = my_lines[219]
+    print(my_line_0)
+
+    first_split_0 = my_line_0.split("::")[1]
+    print("Primeiro:", first_split_0)
+
+    second_split_0 = first_split_0.split("<data_T")
+    print("Segundo:", second_split_0)
+
+    if second_split_0[0] == layer_rec_activation:
+       res_0 = my_lines[219]
+
+    else:
+       second_split_0[0] = layer_rec_activation
+       res_0 = "\tnnet::" + "<data_T".join(second_split_0)
+    print(res_0)
+
+    my_lines[219] = res_0
+
+
+
+    ## Rec_Activation line 225
+    my_line_1 = my_lines[224]
+    print(my_line_1)
+    
+    first_split_1 = my_line_1.split("::")[1]
+    print("Primeiro:", first_split_1)
+
+    second_split_1 = first_split_1.split("<data_T")
+    print("Segundo:", second_split_1)
+
+    if second_split_1[0] == layer_rec_activation:
+       res_1 = my_lines[224]
+
+    else:
+       second_split_1[0] = layer_rec_activation
+       res_1 = "\tnnet::" + "<data_T".join(second_split_1)
+    print(res_1)
+
+    my_lines[224] = res_1
+
+
+    ## Activation line 230
+    my_line_2 = my_lines[229]
+    print(my_line_2)
+    
+    first_split_2 = my_line_2.split("::")[1]
+    print("Primeiro:", first_split_2)
+
+    second_split_2 = first_split_2.split("<data_T")
+    print("Segundo:", second_split_2)
+
+    if second_split_2[0] == layer_activation[0]:
+       res_2 = my_lines[229]
+
+    else:
+       second_split_2[0] = layer_activation[0]
+       res_2 = "\tnnet::" + "<data_T".join(second_split_2)
+    print(res_2)
+
+    my_lines[229] = res_2
+
+
+    ## Rec_Activation line 238
+    my_line_3 = my_lines[237]
+    print(my_line_3)
+    
+    first_split_3 = my_line_3.split("::")[1]
+    print("Primeiro:", first_split_3)
+
+    second_split_3 = first_split_3.split("<data_T")
+    print("Segundo:", second_split_3)
+
+    if second_split_3[0] == layer_rec_activation:
+       res_3 = my_lines[237]
+
+    else:
+       second_split_3[0] = layer_rec_activation
+       res_3 = "\tnnet::" + "<data_T".join(second_split_3)
+    print(res_3)
+
+    my_lines[237] = res_3
+
+
+    ## Activation line 240
+    my_line_4 = my_lines[239]
+    print(my_line_4)
+    
+    first_split_4 = my_line_4.split("::")[1]
+    print("Primeiro:", first_split_4)
+
+    second_split_4 = first_split_4.split("<data_T")
+    print("Segundo:", second_split_4)
+
+    if second_split_4[0] == layer_activation[0]:
+       res_4 = my_lines[239]
+
+    else:
+       second_split_4[0] = layer_activation[0]
+       res_4 = "\tnnet::" + "<data_T".join(second_split_4)
+    print(res_4)
+
+    my_lines[239] = res_4
+    
+    #with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","w") as myfile:
+    #    myfile.writelines(my_lines)
+
+
+    print('Activation and Rec Activation', layer_activation, layer_rec_activation)
+    """
     print('Creating HLS model')
-    hls_model = HLSModel(config, reader, layer_list, input_layers, output_layers)
+    print("O que é layer list?", layer_list)
+    #print("O que é output_layers?", output_layers)
+    #print("O que é input_layers ?", input_layers)
+    hls_model = HLSModel(config, reader, activation_type, layer_list, input_layers, output_layers)
+    print('HLS_MODEL: ', hls_model)
+    print('**Input_Layers**', input_layers)
+    print('**Output_Layers**', output_layers)
     return hls_model

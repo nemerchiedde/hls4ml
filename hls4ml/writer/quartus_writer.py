@@ -65,6 +65,7 @@ class QuartusWriter(Writer):
         h_file.close()
 
     def write_project_dir(self, model):
+        print("FOI?")
         if not os.path.isdir("{}/firmware/weights".format(model.config.get_output_dir())):
             os.makedirs("{}/firmware/weights".format(model.config.get_output_dir()))
 
@@ -72,7 +73,7 @@ class QuartusWriter(Writer):
         ###################
         ## myproject.cpp
         ###################
-
+        print("FOI?")
         filedir = os.path.dirname(os.path.abspath(__file__))
         f = open(os.path.join(filedir,'../templates/quartus/firmware/myproject.cpp'),'r')
         fout = open('{}/firmware/{}.cpp'.format(model.config.get_output_dir(), model.config.get_project_name()),'w')
@@ -130,8 +131,8 @@ class QuartusWriter(Writer):
                             name = var.definition_cpp_name()
                             newline += '    ' + 'hls_register outputdat ' + name + ';\n'
                             var.name += '.data'
-                    if layer.get_attr('activation') == 'tanh':
-                        layer.set_attr('activation') == 'dense_tanh'
+                 #   if layer.get_attr('activation') == 'tanh':
+                 #       layer.set_attr('activation') == 'dense_tanh'
                     func = layer.function_cpp()
                     if func:
                         for line in func:
@@ -435,7 +436,7 @@ class QuartusWriter(Writer):
         ###################
         # Makefile
         ###################
-
+        
         filedir = os.path.dirname(os.path.abspath(__file__))
         f = open(os.path.join(filedir,'../templates/quartus/Makefile'),'r')
         fout = open('{}/Makefile'.format(model.config.get_output_dir()),'w')
@@ -444,7 +445,7 @@ class QuartusWriter(Writer):
 
             line = line.replace('myproject',model.config.get_project_name())
 
-            if 'DEVICE :=' in line:
+            if 'DEVICE   :=' in line:
                 line = 'DEVICE := {}\n'.format(model.config.get_config_value('FPGAPart'))
 
             fout.write(line)
@@ -496,7 +497,7 @@ class QuartusWriter(Writer):
             rmtree(dstpath)
 
         copytree(srcpath, dstpath)
-
+   
     def write_activation_tables(self, model):
 
         ###################
@@ -801,9 +802,138 @@ class QuartusWriter(Writer):
 
         with tarfile.open(model.config.get_output_dir() + '.tar.gz', mode='w:gz') as archive:
             archive.add(model.config.get_output_dir(), recursive=True)
+    """
+    def write_activation_lstm(layer_rec_activation,layer_activation):
+        with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","r") as myfile:
+            my_lines = myfile.readlines()
+        taille_my_lines=len(my_lines)
+        i = 0
+        while i < taille_my_lines:
+           actv = my_lines[i].find('//activation')
+           rec_actv = my_lines[i].find('//recurrent_activation')
+
+           if actv != -1:
+              first_split_actv = my_lines[i].split("::")[1]
+              second_split_actv = first_split_actv.split("<data_T")
+              if second_split_actv[0] == layer_activation[0]:
+                  res = my_lines[i]
+                  print(res, 'qual é a linha1')
+              else:
+                  second_split_actv[0] = layer_activation[0]
+                  res = "\tnnet::" + "<data_T".join(second_split_actv)
+                  print(res, 'qual é a linha2')
+                       
+           elif rec_actv != -1:
+              first_split_ractv = my_lines[i].split("::")[1]
+              second_split_ractv = first_split_ractv.split("<data_T")
+              if second_split_ractv[0] == layer_rec_activation:
+                  res = my_lines[i]
+                  print(res, 'qual é a linha1')
+              else:
+                  second_split_ractv[0] = layer_rec_activation
+                  res = "\tnnet::" + "<data_T".join(second_split_ractv)
+                  print(res, 'qual é a linha2')
+                   
+           else:
+              res = my_lines[i]
+           
+           my_lines[i] = res
+           i += 1    
+              	 
+        #with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","w") as myfile:
+        #    myfile.writelines(my_lines)
+              
+        print('Activation and Rec Activation', layer_activation, layer_rec_activation)
+        print('My_lines',my_lines)
+        print('Deu certo')
+        return
+ 
+            if actv_gate_x_c != -1:
+               res = activation_selection(activation, layer_activation)
+               print(res)
+               activation += 1
+            elif rec_actv != -1:
+               res = rec_activation_selection(recurrent_activation, layer_rec_activation)
+               print(res)
+               recurrent_activation += 1
+
+    def activation_selection(activation, layer_activation):
+         print(layer_activation, "nemer chiedde")
+         switcher={
+                   0: lambda: "\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(x_c, cell_activation); //hls_fpga insert activation\n",
+                   1: lambda: "\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(c, cell_activation); //hls_fpga insert activation\n",
+                   2: lambda: "c",
+                   3: lambda: "d"
+                   }
+         func=switcher.get(activation, lambda : "# erreur")
+         return func()
+
+    def rec_activation_selection(recurrent_activation, layer_rec_activation):
+         switcher={
+                   0: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_i, i); //hls_fpga insert recurrent_activation\n",
+                   1: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_f, f); //hls_fpga insert recurrent_activation\n",
+                   2: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_o, o); //hls_fpga insert recurrent_activation\n",
+                   3: lambda: "d"
+                   }
+         func=switcher.get(recurrent_activation, lambda : "# erreur")
+     return func()
+
+        """
+    def write_activation_lstm(self, model): #layer_rec_activation,layer_activation
+
+         dstpath = './{}/firmware/nnet_utils/lstm_cell.h'.format(model.config.get_output_dir())
+
+         layer_activation = model.activation_type[0]
+         layer_rec_activation = model.activation_type[1]
+
+         with open(dstpath,"r") as myfile:
+             my_lines = myfile.readlines()
+
+         taille_my_lines=len(my_lines)
+         i = 0
+         #activation = 0
+         #recurrent_activation = 0
+         #x = dstpath.replace('//hls_fpga insert recurrent_activation Gate I --- Gate I','\tnnet::'+ layer_activation +'<data_T,data_T,CONFIG_T>(x_c, cell_activation); //hls_fpga insert activation --- Gate I\n')
+
+         while i < taille_my_lines:
+
+            actv_gate_x_c = my_lines[i].find('//hls_fpga insert activation  --- Gate X_C')
+            actv_gate_c = my_lines[i].find('//hls_fpga insert activation --- Gate C')
+
+            rec_actv_gate_i = my_lines[i].find('//hls_fpga insert recurrent_activation --- Gate I')
+            rec_actv_gate_f = my_lines[i].find('//hls_fpga insert recurrent_activation --- Gate F')
+            rec_actv_gate_o = my_lines[i].find('//hls_fpga insert recurrent_activation  --- Gate O')
+
+
+            if actv_gate_x_c != -1:
+               res = "\t//hls_fpga insert activation  --- Gate X_C\n\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(x_c, cell_activation);\n"
+                       
+            elif actv_gate_c  != -1:
+               res = "\t//hls_fpga insert activation --- Gate C\n\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(c, cell_activation);\n"
+
+            elif rec_actv_gate_i != -1:
+               res = "\t//hls_fpga insert recurrent_activation --- Gate I\n\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_i, i);\n"
+
+            elif rec_actv_gate_f != -1:
+               res = "\t//hls_fpga insert recurrent_activation --- Gate F\n\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_f, f);\n"
+
+            elif rec_actv_gate_o != -1:
+               res = "\t//hls_fpga insert recurrent_activation  --- Gate O\n\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_o, o);\n"
+                   
+            else:
+               res = my_lines[i]
+          
+            my_lines[i] = res
+            i += 1    
+              	 
+         with open(dstpath ,"w") as myfile:
+             myfile.writelines(my_lines)
+         return
+
 
     def write_hls(self, model):
         print('Writing HLS project')
+        print(model)
         self.write_project_dir(model)
         self.write_project_cpp(model)
         self.write_project_header(model)
@@ -814,6 +944,195 @@ class QuartusWriter(Writer):
         self.write_bridge(model)
         self.write_build_script(model)
         self.write_nnet_utils(model)
+        self.write_activation_lstm(model)
         self.write_activation_tables(model)
         self.write_tar(model)
         print('Done')
+
+
+
+
+
+
+"""
+
+def activation_selection(activation, layer_activation):
+     print(layer_activation, "nemer chiedde")
+     switcher={
+               0: lambda: "\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(x_c, cell_activation); //hls_fpga insert activation\n",
+               1: lambda: "\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(c, cell_activation); //hls_fpga insert activation\n",
+               2: lambda: "c",
+               3: lambda: "d"
+               }
+     func=switcher.get(activation, lambda : "# erreur")
+     return func()
+
+def rec_activation_selection(recurrent_activation, layer_rec_activation):
+     switcher={
+               0: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_i, i); //hls_fpga insert recurrent_activation\n",
+               1: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_f, f); //hls_fpga insert recurrent_activation\n",
+               2: lambda: "\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_o, o); //hls_fpga insert recurrent_activation\n",
+               3: lambda: "d"
+               }
+     func=switcher.get(recurrent_activation, lambda : "# erreur")
+     return func()
+
+
+
+
+def write_activation_lstm(layer_rec_activation,layer_activation):
+     with open("../hls4ml/templates/quartus/firmware/nnet_utils/lstm_cell.h","r") as myfile:
+         my_lines = myfile.readlines()
+     taille_my_lines=len(my_lines)
+     i = 0
+     while i < taille_my_lines:
+        actv = my_lines[i].find('//activation')
+        rec_actv = my_lines[i].find('//recurrent_activation')
+
+        if actv != -1:
+           first_split_actv = my_lines[i].split("::")[1]
+           second_split_actv = first_split_actv.split("<data_T")
+           if second_split_actv[0] == layer_activation[0]:
+               res = my_lines[i]
+               print(res, 'qual é a linha1')
+           else:
+               second_split_actv[0] = layer_activation[0]
+               res = "\tnnet::" + "<data_T".join(second_split_actv)
+               print(res, 'qual é a linha2')
+                       
+        elif rec_actv != -1:
+           first_split_ractv = my_lines[i].split("::")[1]
+           second_split_ractv = first_split_ractv.split("<data_T")
+           if second_split_ractv[0] == layer_rec_activation:
+               res = my_lines[i]
+               print(res, 'qual é a linha1')
+           else:
+               second_split_ractv[0] = layer_rec_activation
+               res = "\tnnet::" + "<data_T".join(second_split_ractv)
+               print(res, 'qual é a linha2')
+                   
+        else:
+           res = my_lines[i]
+          
+        my_lines[i] = res
+        i += 1    
+              	 
+     with open("../quartus-test-cppm/quartus_prj/KERAS_LSTM-python3--c2-build/firmware/nnet_utils/lstm_cell.h","w") as myfile:
+         myfile.writelines(my_lines)
+              
+     print('Activation and Rec Activation', layer_activation, layer_rec_activation)
+     print('My_lines',my_lines)
+     print('Deu certo')
+     return
+
+"""
+
+
+
+
+"""
+## Rec_Activation line 220
+    my_line_0 = my_lines[219]
+    print(my_line_0)
+
+    first_split_0 = my_line_0.split("::")[1]
+    print("Primeiro:", first_split_0)
+
+    second_split_0 = first_split_0.split("<data_T")
+    print("Segundo:", second_split_0)
+
+    if second_split_0[0] == layer_rec_activation:
+       res_0 = my_lines[219]
+
+    else:
+       second_split_0[0] = layer_rec_activation
+       res_0 = "\tnnet::" + "<data_T".join(second_split_0)
+    print(res_0)
+
+    my_lines[219] = res_0
+
+
+
+    ## Rec_Activation line 225
+    my_line_1 = my_lines[224]
+    print(my_line_1)
+    
+    first_split_1 = my_line_1.split("::")[1]
+    print("Primeiro:", first_split_1)
+
+    second_split_1 = first_split_1.split("<data_T")
+    print("Segundo:", second_split_1)
+
+    if second_split_1[0] == layer_rec_activation:
+       res_1 = my_lines[224]
+
+    else:
+       second_split_1[0] = layer_rec_activation
+       res_1 = "\tnnet::" + "<data_T".join(second_split_1)
+    print(res_1)
+
+    my_lines[224] = res_1
+
+
+    ## Activation line 230
+    my_line_2 = my_lines[229]
+    print(my_line_2)
+    
+    first_split_2 = my_line_2.split("::")[1]
+    print("Primeiro:", first_split_2)
+
+    second_split_2 = first_split_2.split("<data_T")
+    print("Segundo:", second_split_2)
+
+    if second_split_2[0] == layer_activation[0]:
+       res_2 = my_lines[229]
+
+    else:
+       second_split_2[0] = layer_activation[0]
+       res_2 = "\tnnet::" + "<data_T".join(second_split_2)
+    print(res_2)
+
+    my_lines[229] = res_2
+
+
+    ## Rec_Activation line 238
+    my_line_3 = my_lines[237]
+    print(my_line_3)
+    
+    first_split_3 = my_line_3.split("::")[1]
+    print("Primeiro:", first_split_3)
+
+    second_split_3 = first_split_3.split("<data_T")
+    print("Segundo:", second_split_3)
+
+    if second_split_3[0] == layer_rec_activation:
+       res_3 = my_lines[237]
+
+    else:
+       second_split_3[0] = layer_rec_activation
+       res_3 = "\tnnet::" + "<data_T".join(second_split_3)
+    print(res_3)
+
+    my_lines[237] = res_3
+
+
+    ## Activation line 240
+    my_line_4 = my_lines[239]
+    print(my_line_4)
+    
+    first_split_4 = my_line_4.split("::")[1]
+    print("Primeiro:", first_split_4)
+
+    second_split_4 = first_split_4.split("<data_T")
+    print("Segundo:", second_split_4)
+
+    if second_split_4[0] == layer_activation[0]:
+       res_4 = my_lines[239]
+
+    else:
+       second_split_4[0] = layer_activation[0]
+       res_4 = "\tnnet::" + "<data_T".join(second_split_4)
+    print(res_4)
+
+    my_lines[239] = res_4
+   """
