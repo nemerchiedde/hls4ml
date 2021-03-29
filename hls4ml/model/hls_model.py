@@ -241,11 +241,11 @@ class HLSConfig(object):
         self.backend.validate_hls(self)
 
 class HLSModel(object):
-    def __init__(self, config, data_reader, layer_list, inputs=None, outputs=None):
+    def __init__(self, config, data_reader, activation_type, return_sequences, layer_list, inputs=None, outputs=None):
         self.config = HLSConfig(config)
         self.backend = get_backend(config.get('Backend', 'Vivado'))
         self.reader = data_reader
-
+        print("Ler",layer_list[0]['name'],'ou', layer_list[0], 'e', layer_list[-1], 'ou', layer_list[-1]['name'])
         # If not provided, assumes layer_list[0] is input, and layer_list[-1] is output
         self.inputs = inputs if inputs is not None else [layer_list[0]['name']]
         self.outputs = outputs if outputs is not None else [layer_list[-1]['name']]
@@ -259,18 +259,24 @@ class HLSModel(object):
         self._make_graph(layer_list)
 
         self._optimize_model(self.config.optimizers)
+        self.batch_input = layer_list[1]['input_shape']
+        self.activation_type = activation_type 
+        self.return_sequences = return_sequences
 
     def _make_graph(self, layer_list):
         for layer in layer_list:
             kind = layer['class_name']
             name = layer['name']
             inputs = layer.get('inputs', [])
+            
             outputs = layer.get('outputs', [])
             if len(inputs) == 0:
                 inputs = [next(reversed(self.graph), 'input')]
+                print(inputs, "input")
             if len(outputs) == 0:
                 outputs = [name]
-
+                print(outputs, "output")
+            print('layer HLS_Model:', layer, 'inputs', inputs, 'outputs',outputs)
             self.graph[name] = self.make_node(kind, name, layer, inputs, outputs)
 
     def _optimize_model(self, optimizers):
@@ -532,12 +538,12 @@ class HLSModel(object):
         if 'linux' in sys.platform:
             if self.config.get_config_value('Backend', 'Vivado') in templates.backend_map:
                 prj_dir = self.config.get_output_dir()
-                self.backend.build(dir=prj_dir, prj_config=self.config, reset=reset, csim=csim, synth=synth, cosim=cosim, validation=validation, export=export, fpgasynth=fpgasynth)
+                self.backend.build(dir=prj_dir, prj_config=self.config.config, reset=reset, csim=csim, synth=synth, cosim=cosim, validation=validation, export=export, fpgasynth=fpgasynth)
             else:
                 raise Exception('Backend not Implemented try [Vivado, Quartus]')
 
     def report(self, output=False):
         if self.config.get_config_value('Backend', 'Vivado') in templates.backend_map:
-            return self.backend.report_to_dict(prj_config=self.config, output=output)
+            return self.backend.report_to_dict(hls_config=self.config, output=output)
         else:
             raise Exception('Backend not Implemented try [Vivado, Quartus]')
