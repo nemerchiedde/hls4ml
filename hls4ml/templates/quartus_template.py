@@ -4,18 +4,17 @@ import os
 import ctypes
 import copy
 import platform
-import yaml
 from bisect import bisect_left
 import webbrowser
-from slimit import ast
-from slimit.parser import Parser
-from slimit.visitors import nodevisitor
+from calmjs.parse import es5
+from calmjs.parse import asttypes
 from tabulate import tabulate
-import json
 import uuid
+from ast import literal_eval
 
-from hls4ml.templates.templates import Backend
+from hls4ml.templates.templates import Backend, cd
 from hls4ml.model.hls_layers import IntegerPrecisionType, FixedPrecisionType
+
 
 dense_config_template = """struct config{index} : nnet::dense_config {{
     static const unsigned n_in = {n_in};
@@ -180,6 +179,27 @@ transpose_config_template = """struct config{index} : nnet::transpose_config {{
     static const unsigned perm[3] = {{{perm_str}}};
 }};\n"""
 
+
+
+########################################## LSTM
+lstm_config_template = """struct config{index} : lstm_config {{
+    static const unsigned n_in = {n_in};
+    static const unsigned n_out = {n_in};
+    static const unsigned n_timestamp = {n_timestamp};
+}};\n"""
+
+lstm_function_template = 'lstm_network<{input_t}, {output_t}, {config} ,{input_t}>({input}[0], {output},{weights});'
+
+lstm_include_list = ['nnet_utils/lstm_cell.h']
+
+################################################
+
+##################################### ACTIVATION
+
+
+
+################################################
+
 dense_function_template = 'nnet::dense{strategy}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
 batchnorm_function_template = 'nnet::normalize<{input_t}, {output_t}, {config}>({input}, {output}, {scale}, {bias});'
 #conv1d_function_template = 'nnet::conv_1d_{strategy}_{data_format}<{input_t}, {output_t}, {config}>({input}, {output}, {w}, {b});'
@@ -214,6 +234,7 @@ class QuartusBackend(Backend):
         self.register_templates('ParametrizedActivation' , param_activ_function_template, activ_config_template, activ_include_list)
         self.register_templates('PReLU'                  , param_activ_function_template, activ_config_template, activ_include_list)
         self.register_templates('Softmax'                , activ_function_template,       softmax_config_template, activ_include_list)
+        self.register_templates('Lstm'                , lstm_function_template,       lstm_config_template, lstm_include_list)
         #self.register_templates('Pooling1D'              , pooling1d_function_template,   pooling1d_config_template, pooling_include_list)
         #self.register_templates('Pooling2D'              , pooling2d_function_template,   pooling2d_config_template, pooling_include_list)
         #self.register_templates('Merge'                  , merge_function_template,       merge_config_template, merge_include_list)
@@ -373,28 +394,41 @@ class QuartusBackend(Backend):
             dlclose_func(model._top_function_lib._handle)
         model._top_function_lib = ctypes.cdll.LoadLibrary(lib_name)
 
-    def build(self, dir, prj_config=None, reset=False, csim=True, synth=True, cosim=False, validation=False, export=False, fpgasynth=False):
+    def build(self, dir, prj_config, reset=False, csim=True, synth=True, cosim=False, validation=False, export=False, fpgasynth=False):
+        """
+        Low level function to build the system. Users should generally not call this function directly
+        but instead use HLSModel.build(...)
+
+        Args:
+            dir (string):  The directory where the project is found
+            prj_config (dict): The project configuration dictionary--note, not HLSConfig
+            reset, optional: Whether to reset the system. (Currently ignored)
+            synth, optional: Whether to run synthesis
+            cosim, optional: Whether to run cosim (currently ignored)
+            validation, optional: Whether to run validation (currently ignored)
+            export, optional: Whether to export the project (currently ignored)
+            fpgasynth, optional:  Whether to run fpga synthesis
+
+        Errors raise exceptions
+        """
         found = os.system('command -v i++ > /dev/null')
         if found != 0:
             raise Exception('Intel HLS installation not found. Make sure "i++" is on PATH.')
 
-        curr_dir = os.getcwd()
+        top_func_name = prj_config["ProjectName"]
 
-        os.chdir(dir)
-        top_func_name = prj_config.get_project_name()
+        # use a context manager for exception safety
+        with cd(dir):
+            if(synth):
+                os.system('make {}-fpga'.format(top_func_name))
+                os.system('./{}-fpga'.format(top_func_name))
 
-        if(synth):
-            os.system('make {}-fpga'.format(top_func_name))
-            os.system('./{}-fpga'.format(top_func_name))
-
-        if(fpgasynth):
-            found = os.system('command -v quartus_sh > /dev/null')
-            if found != 0:
-                raise Exception('Quartus installation not found. Make sure "quartus_sh" is on PATH.')
-            os.chdir(top_func_name + '-fpga.prj/quartus')
-            os.system('quartus_sh --flow compile quartus_compile')
-
-        os.chdir(curr_dir)
+            if(fpgasynth):
+                found = os.system('command -v quartus_sh > /dev/null')
+                if found != 0:
+                    raise Exception('Quartus installation not found. Make sure "quartus_sh" is on PATH.')
+                os.chdir(top_func_name + '-fpga.prj/quartus')
+                os.system('quartus_sh --flow compile quartus_compile')
 
     def get_supportedlayers(self):
         #Define supported laers
@@ -421,20 +455,33 @@ class QuartusBackend(Backend):
         else:
             return 'ac_int<{width}, {signed}>'.format(width=width, signed='false' if not signed else 'true')
 
-    def report_to_dict(self, prj_config=None, output=False):
-        hls_dir = prj_config.get_output_dir()
+    def report_to_dict(self, hls_config, output=False):
+        """
+        Low level function to return the report as a dictionary. Users should generally not call this function directly
+        but should use functions from the HLSModel.
+
+        Args:
+            dir (string):  The directory where the project is found
+            hls_config (HLSConfig): The project configuration
+            output, optional:  whether to pint a summary
+
+        Returns:
+            dict: the report dictionary
+
+        Raises exceptions on errors
+
+        """
+        hls_dir = hls_config.get_output_dir()
 
         if not os.path.exists(hls_dir):
-            print('Path {} does not exist. Exiting.'.format(hls_dir))
-            return
+            raise RuntimeError('Path {} does not exist. Exiting.'.format(hls_dir))
 
-        top_func_name = prj_config.get_project_name()
+        top_func_name = hls_config.get_project_name()
         prj_dir = top_func_name + '-fpga.prj'
 
         rpt_file = hls_dir + '/' + prj_dir + '/reports'
         if not os.path.exists(rpt_file):
-            print('Project {} does not exist. Rerun "hls4ml build -p {} -b Quartus".'.format(prj_dir, hls_dir))
-            return
+            raise RuntimeError('Project {} does not exist. Make sure the project is built.'.format(prj_dir, hls_dir))
 
         report = self._find_reports(rpt_file)
         if output:
@@ -450,12 +497,27 @@ class QuartusBackend(Backend):
         return report
 
 
-    def read_report(self, hls_dir, full_report=False, prj_config=None):
+    def read_report(self, hls_dir, prj_config, full_report=False, open_browser=False):
+        """
+        Low level function to print the report (and open browser). Users should generally not call this function directly
+        but should use functions from the HLSModel.
+
+        Args:
+            dir (string):  The directory where the project is found
+            prj_config (dict): The project configuration dictionary--note, not HLSConfig
+            full_report, optional:  whether to have a full report (currently ignored)
+            open_browser, optional:  whether to open a browser
+        """
         if not os.path.exists(hls_dir):
             print('Path {} does not exist. Exiting.'.format(hls_dir))
             return
 
-        top_func_name = prj_config.get('ProjectName')
+        try:
+            top_func_name = prj_config['ProjectName']
+        except Exception:
+            print("prj_config is not a dictionary or it does not contain the ProjectName key")
+            return
+
         prj_dir = top_func_name + '-fpga.prj'
 
         rpt_file = hls_dir + '/' + prj_dir + '/reports'
@@ -474,58 +536,70 @@ class QuartusBackend(Backend):
         else:
             print("Quartus compile data not found! To generate data run 'hls4ml build -l' or MODEL.build(synth=False, fpgasynth=True) if using API.")
 
-        url = 'file:' + os.getcwd() + '/' + rpt_file + '/report.html'
-        webbrowser.open(url)
+        if open_browser:
+            url = 'file:' + os.getcwd() + '/' + rpt_file + '/report.html'
+            webbrowser.open(url)
 
     def _find_reports(self, sln_dir):
         def read_js_object(js_script):
+            """
+            Reads the JS input (js_script, a string), and return a dictionary of
+            variables definded in the JS.
+            """
             def visit(node):
-                if isinstance(node, ast.Program):
+                if isinstance(node, asttypes.Program):
                     d = {}
                     for child in node:
-                        if not isinstance(child, ast.VarStatement):
+                        if not isinstance(child, asttypes.VarStatement):
                             raise ValueError("All statements should be var statements")
                         key, val = visit(child)
                         d[key] = val
                     return d
-                elif isinstance(node, ast.VarStatement):
+                elif isinstance(node, asttypes.VarStatement):
                     return visit(node.children()[0])
-                elif isinstance(node, ast.VarDecl):
+                elif isinstance(node, asttypes.VarDecl):
                     return (visit(node.identifier), visit(node.initializer))
-                elif isinstance(node, ast.Object):
+                elif isinstance(node, asttypes.Object):
                     d = {}
                     for property in node:
                         key = visit(property.left)
                         value = visit(property.right)
                         d[key] = value
                     return d
-                elif isinstance(node, ast.BinOp):
+                elif isinstance(node, asttypes.BinOp):
                     # simple constant folding
                     if node.op == '+':
-                        if isinstance(node.left, ast.String) and isinstance(node.right, ast.String):
+                        if isinstance(node.left, asttypes.String) and isinstance(node.right, asttypes.String):
                             return visit(node.left) + visit(node.right)
-                        elif isinstance(node.left, ast.Number) and isinstance(node.right, ast.Number):
+                        elif isinstance(node.left, asttypes.Number) and isinstance(node.right, asttypes.Number):
                             return visit(node.left) + visit(node.right)
                         else:
                             raise ValueError("Cannot + on anything other than two literals")
                     else:
                         raise ValueError("Cannot do operator '%s'" % node.op)
-         
-                elif isinstance(node, ast.String):
-                    return node.value.strip('"').strip("'")
-                elif isinstance(node, ast.Array):
+
+                elif isinstance(node, asttypes.String) or isinstance(node, asttypes.Number):
+                    return literal_eval(node.value)
+                elif isinstance(node, asttypes.Array):
                     return [visit(x) for x in node]
-                elif isinstance(node, ast.Number) or isinstance(node, ast.Identifier) or isinstance(node, ast.Boolean) or isinstance(node, ast.Null):
+                elif isinstance(node, asttypes.Null):
+                    return None
+                elif isinstance(node, asttypes.Boolean):
+                    if str(node) == "false":
+                        return False
+                    else:
+                        return True
+                elif isinstance(node, asttypes.Identifier):
                     return node.value
                 else:
                     raise Exception("Unhandled node: %r" % node)
-            return visit(Parser().parse(js_script))
+            return visit(es5(js_script))
 
         def _read_quartus_file(filename, results):
             with open(filename) as dataFile:
                 quartus_data = dataFile.read()
                 quartus_data = read_js_object(quartus_data)
-                
+
             if(quartus_data['quartusJSON']['quartusFitClockSummary']['nodes'][0]['clock'] != "TBD"):
                 results['Clock'] = quartus_data['quartusJSON']['quartusFitClockSummary']['nodes'][0]['clock']
                 results['Quartus ALM'] = quartus_data['quartusJSON']['quartusFitResourceUsageSummary']['nodes'][-1]['alm']
@@ -534,7 +608,7 @@ class QuartusBackend(Backend):
                 results['Quartus RAM'] = quartus_data['quartusJSON']['quartusFitResourceUsageSummary']['nodes'][-1]['ram']
                 results['Quartus MLAB'] = quartus_data['quartusJSON']['quartusFitResourceUsageSummary']['nodes'][-1]['mlab']
 
-        
+
         def _read_report_file(filename, results):
             with open(filename) as dataFile:
                 report_data = dataFile.read()
@@ -542,9 +616,9 @@ class QuartusBackend(Backend):
                 report_data = read_js_object(report_data)
                 results['HLS ALUT'], results['HLS FF'], results['HLS RAM'], results['HLS DSP'], results['HLS MLAB'] = report_data['areaJSON']['total']
                 results['HLS ALUT percent'], results['HLS FF percent'], results['HLS RAM percent'], results['HLS DSP percent'], results['HLS MLAB percent'] = report_data['areaJSON']['total_percent']
-                
-                
-            
+
+
+
         def _read_verification_file(filename, results):
             if os.path.isfile(filename):
                 with open(filename) as dataFile:
@@ -564,5 +638,5 @@ class QuartusBackend(Backend):
         _read_report_file(report_file, results)
         _read_verification_file(verification_file, results)
         _read_quartus_file(quartus_file, results)
-        
+
         return results

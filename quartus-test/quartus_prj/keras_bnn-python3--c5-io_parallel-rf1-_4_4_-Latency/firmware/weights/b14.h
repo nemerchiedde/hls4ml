@@ -6,6 +6,9 @@
 #ifndef B14_H_
 #define B14_H_
 
-hls_init_on_powerup static const bias14_t b14[5] = {0.000000, 0.000000, 0.000000, 0.000000, 0.000000};
+#ifdef __INTELFPGA_COMPILER__
+hls_init_on_powerup
+#endif
+static const bias14_t b14[5] = {0.000000, 0.000000, 0.000000, 0.000000, 0.000000};
 
 #endif

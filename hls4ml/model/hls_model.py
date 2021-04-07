@@ -245,11 +245,12 @@ class HLSModel(object):
         self.config = HLSConfig(config)
         self.backend = get_backend(config.get('Backend', 'Vivado'))
         self.reader = data_reader
-        print("Ler",layer_list[0]['name'],'ou', layer_list[0], 'e', layer_list[-1], 'ou', layer_list[-1]['name'])
+        print("hls_model(248) - layer_list: ",layer_list[0]['name'],'ou', layer_list[0], 'e', layer_list[-1], 'ou', layer_list[-1]['name'])
         # If not provided, assumes layer_list[0] is input, and layer_list[-1] is output
         self.inputs = inputs if inputs is not None else [layer_list[0]['name']]
-        self.outputs = outputs if outputs is not None else [layer_list[-1]['name']]
 
+        self.outputs = outputs if outputs is not None else [layer_list[-1]['name']]
+        print('hls_model(253) - self.outputs: ', self.outputs)
         self.index = 0
         self.graph = OrderedDict()
         self.output_vars = {}
@@ -260,36 +261,39 @@ class HLSModel(object):
 
         self._optimize_model(self.config.optimizers)
         self.batch_input = layer_list[1]['input_shape']
-        self.activation_type = activation_type 
+        self.activation_type = activation_type
         self.return_sequences = return_sequences
 
-    def _make_graph(self, layer_list):
+    def _make_graph(self, layer_list):  ##Aqui que gera os layers input output
         for layer in layer_list:
             kind = layer['class_name']
             name = layer['name']
             inputs = layer.get('inputs', [])
-            
-            outputs = layer.get('outputs', [])
+
+            outputs = layer.get('outputs', []) #retorna []
+
             if len(inputs) == 0:
                 inputs = [next(reversed(self.graph), 'input')]
-                print(inputs, "input")
-            if len(outputs) == 0:
+                print("hls_model(277) - input: ", inputs)
+            if len(outputs) == 0: #Salva o tipo input_lstm, lstm, dense, dense_relu
                 outputs = [name]
-                print(outputs, "output")
-            print('layer HLS_Model:', layer, 'inputs', inputs, 'outputs',outputs)
-            self.graph[name] = self.make_node(kind, name, layer, inputs, outputs)
+                #print("len_outputs", outputs)
+            print('hls_model(281) - layer HLS_Model:', layer, 'inputs', inputs, 'outputs',outputs)
+            self.graph[name] = self.make_node(kind, name, layer, inputs, outputs) #Cria dicionario chamado graph.
+
 
     def _optimize_model(self, optimizers):
         optimize_model(self, optimizers)
 
     def make_node(self, kind, name, attributes, inputs, outputs=None):
-        node = layer_map[kind](self, name, attributes, inputs, outputs)
+        node = layer_map[kind](self, name, attributes, inputs, outputs) #Aqui recebe as informaçoes para cada chave
         for o in node.outputs:
+            print("hls_model(291) - o: ",o) # input_lstm, lstm, dense, dense_relu
             out_var = node.get_output_variable(output_name=o)
             if o in self.outputs:
+                print("hls_model(294) - o: ",o) #dense_relu
                 out_var.type.name = 'result_t'
             self.output_vars[o] = out_var
-
         return node
 
     def insert_node(self, node):
@@ -362,12 +366,17 @@ class HLSModel(object):
         self.output_vars[out_name] = variable
 
     def get_output_variables(self):
+        
         variables = []
         for out in self.outputs:
             variables.append(self.output_vars[out])
         return variables
 
     def get_layer_output_variable(self, output_name):
+        print('hls_model(375) - output_name:', output_name)
+        #a=self.output_vars[output_name]
+        #print('hls_model(377) - a = self.output_vars[output_name].include_lists: ', a.
+        #print('hls_model(378) - a[lstm_input]: ', a['lstm_input'])
         return self.output_vars[output_name]
 
     def write(self):

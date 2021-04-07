@@ -1,3 +1,20 @@
+"""
+The Backend base class
+"""
+
+import os
+from contextlib import contextmanager
+
+
+@contextmanager
+def cd(newdir):
+    prevdir = os.getcwd()
+    os.chdir(os.path.expanduser(newdir))
+    try:
+        yield
+    finally:
+        os.chdir(prevdir)
+
 
 class Backend(object):
     def __init__(self, name):
@@ -32,4 +49,12 @@ def register_backend(name, backend_cls):
     backend_map[name] = backend_cls()
 
 def get_backend(name):
+
+    a=backend_map[name].include_lists
+    print('template(54) - a = backend_map[name].include_lists: ', backend_map[name].include_lists) #path
+    print('template(55) - a[Dense]: ', a['Dense'])
+    if 'Lstm' in a:
+        print('template(57) - a[Lstm]: ', a['Lstm'])
+
+
     return backend_map[name]

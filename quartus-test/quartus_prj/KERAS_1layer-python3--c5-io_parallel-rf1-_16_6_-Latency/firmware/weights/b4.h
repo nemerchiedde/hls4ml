@@ -6,6 +6,9 @@
 #ifndef B4_H_
 #define B4_H_
 
-hls_init_on_powerup static const model_default_t b4[1] = {0.098532};
+#ifdef __INTELFPGA_COMPILER__
+hls_init_on_powerup
+#endif
+static const model_default_t b4[1] = {0.0985319614};
 
 #endif

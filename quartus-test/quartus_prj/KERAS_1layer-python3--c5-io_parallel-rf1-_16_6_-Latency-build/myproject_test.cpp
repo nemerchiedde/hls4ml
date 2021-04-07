@@ -108,8 +108,8 @@ int main(int argc, char **argv)
     fin.close();
     fpr.close();
   } else {
-    std::cout << "INFO: Unable to open input/predictions file, using default input with 4 invocations." << std::endl;
-    num_iterations = 4;
+    num_iterations = 10;
+    std::cout << "INFO: Unable to open input/predictions file, using default input with " << num_iterations << " invocations." << std::endl;
     //hls-fpga-machine-learning insert zero
     inputdat input_1[num_iterations];
     outputdat layer5_out[num_iterations];

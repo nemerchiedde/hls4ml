@@ -7,6 +7,7 @@
 //hls-fpga-machine-learning insert includes
 #include "nnet_utils/nnet_activation.h"
 #include "nnet_utils/nnet_dense.h"
+#include "nnet_utils/nnet_dense_compressed.h"
 
 //hls-fpga-machine-learning insert layer-config
 struct config2 : nnet::dense_config {
@@ -21,6 +22,7 @@ struct config2 : nnet::dense_config {
     static const unsigned bf_pad = 0;
 
     static const unsigned reuse_factor = 1;
+    static const unsigned compressed_block_factor = DIV_ROUNDUP(n_nonzeros, reuse_factor);
     static const unsigned reuse_factor_rounded = reuse_factor + rf_pad;
     static const unsigned block_factor = DIV_ROUNDUP(n_in*n_out, reuse_factor);
     static const unsigned block_factor_rounded = block_factor + bf_pad;
@@ -28,7 +30,7 @@ struct config2 : nnet::dense_config {
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in*n_out, multiplier_factor);
     static const unsigned multiplier_scale = multiplier_limit/n_out;
 
-    typedef <16,6> accum_t;
+    typedef ac_fixed<16, 6, true> accum_t;
     typedef model_default_t bias_t;
     typedef model_default_t weight_t;
     typedef ac_int<1, false> index_t;
@@ -54,6 +56,7 @@ struct config4 : nnet::dense_config {
     static const unsigned bf_pad = 0;
 
     static const unsigned reuse_factor = 1;
+    static const unsigned compressed_block_factor = DIV_ROUNDUP(n_nonzeros, reuse_factor);
     static const unsigned reuse_factor_rounded = reuse_factor + rf_pad;
     static const unsigned block_factor = DIV_ROUNDUP(n_in*n_out, reuse_factor);
     static const unsigned block_factor_rounded = block_factor + bf_pad;
@@ -61,7 +64,7 @@ struct config4 : nnet::dense_config {
     static const unsigned multiplier_limit = DIV_ROUNDUP(n_in*n_out, multiplier_factor);
     static const unsigned multiplier_scale = multiplier_limit/n_out;
 
-    typedef <16,6> accum_t;
+    typedef ac_fixed<16, 6, true> accum_t;
     typedef model_default_t bias_t;
     typedef model_default_t weight_t;
     typedef ac_int<1, false> index_t;

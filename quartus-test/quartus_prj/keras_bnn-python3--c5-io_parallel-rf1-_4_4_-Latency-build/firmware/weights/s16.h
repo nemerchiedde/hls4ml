@@ -6,6 +6,9 @@
 #ifndef S16_H_
 #define S16_H_
 
-hls_init_on_powerup static const model_default_t s16[5] = {0.042166, 0.035804, 0.037605, 0.042948, 0.046109};
+#ifdef __INTELFPGA_COMPILER__
+hls_init_on_powerup
+#endif
+static const model_default_t s16[5] = {0, 0, 0, 0, 0};
 
 #endif

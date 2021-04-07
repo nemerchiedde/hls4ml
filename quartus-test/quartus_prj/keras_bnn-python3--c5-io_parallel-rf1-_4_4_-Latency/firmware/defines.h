@@ -1,11 +1,8 @@
 #ifndef DEFINES_H_
 #define DEFINES_H_
 
-#include <complex>
-#ifndef __INTELFPGA_COMPILER__
-#include "ref/ac_int.h"
-#include "ref/ac_fixed.h"
-#else
+#ifdef __INTELFPGA_COMPILER__
+#include "HLS/hls.h"
 #include "HLS/ac_int.h"
 #include "HLS/ac_fixed.h"
 #endif
@@ -19,13 +16,13 @@
 
 
 //hls-fpga-machine-learning insert layer-precision
-typedef <4,4> model_default_t;
-typedef <4,4> input_t;
-typedef <4,4> layer2_t;
+typedef ac_int<4, true> model_default_t;
+typedef ac_int<4, true> input_t;
+typedef ac_int<4, true> layer2_t;
 typedef ac_int<2, true> weight2_t;
 typedef ac_int<1, false> bias2_t;
 typedef ac_int<1, false> layer17_t;
-typedef <4,4> threshold17_t;
+typedef ac_int<4, true> threshold17_t;
 typedef ac_int<8, true> layer6_t;
 typedef ac_int<1, false> weight6_t;
 typedef ac_int<1, false> bias6_t;
@@ -39,7 +36,7 @@ typedef ac_int<7, true> threshold19_t;
 typedef ac_int<7, true> layer14_t;
 typedef ac_int<1, false> weight14_t;
 typedef ac_int<1, false> bias14_t;
-typedef <4,4> result_t;
+typedef ac_int<4, true> result_t;
 
 
 #define DIV_ROUNDUP(n,d) ((n + d - 1) / d)

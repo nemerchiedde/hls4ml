@@ -21,8 +21,6 @@
 #define NNET_DENSE_LARGE_H_
 
 #include "nnet_common.h"
-#include "HLS/hls.h"
-#include "HLS/math.h"
 
 namespace nnet {
 
@@ -100,15 +98,6 @@ cast(typename CONFIG_T::accum_t x){
   return (res_T) x;
 }
 
-
-/*template<typename CONFIG_T>
-uint32 fastmod(uint32 n)
-{
-      uint32 div = (n * CONFIG_T::reciprocal) >> 35;
-      uint32 multiple = div * CONFIG_T::n_in
-      return n - multiple;
-}*/
-
 template<class data_T, class res_T, typename CONFIG_T>
 void dense_rf_gt(
    data_T    data[CONFIG_T::n_in],
@@ -117,6 +106,7 @@ void dense_rf_gt(
    const typename CONFIG_T::bias_t    biases[CONFIG_T::n_out]
    )
 {
+   assert((CONFIG_T::multiplier_limit % CONFIG_T::n_out == 0 || CONFIG_T::reuse_factor >= CONFIG_T::n_in) && "The current Reuse Factor is not allowed");
    assert((CONFIG_T::reuse_factor > CONFIG_T::n_in) && "This function is correct only for RF > N_IN");
    //#pragma ii CONFIG_T::reuse_factor
    hls_register typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
@@ -139,24 +129,35 @@ void dense_rf_gt(
    }
    Product1:
    #pragma nofusion
+   #pragma speculated_iterations 0
    for(int ir = 0; ir < CONFIG_T::reuse_factor; ir++) {
-       hls_register typename CONFIG_T::accum_t tmp_acc[CONFIG_T::block_factor];
-       Product2:
-       //#pragma ivdep
-       #pragma unroll
-       for(int im = 0; im < CONFIG_T::block_factor ; im++) {
+      hls_register typename CONFIG_T::accum_t tmp_acc[CONFIG_T::block_factor];
+      Product2:
+      #pragma unroll
+      for(int im = 0; im < CONFIG_T::block_factor ; im++) {
           uint32 w_index = ir + (CONFIG_T::reuse_factor_rounded) * im;
           if (w_index >= CONFIG_T::reuse_factor_rounded*CONFIG_T::block_factor_rounded) continue;
           int data_index = d_index[ir][im];
           tmp_acc[im] = product<data_T, typename CONFIG_T::weight_t, typename CONFIG_T::accum_t>(data[data_index], weights[w_index]);
-       }
-       AccumLoop1:
-       #pragma unroll
-       for(int im = 0; im < CONFIG_T::block_factor ; im++) {
+      }
+      hls_register typename CONFIG_T::accum_t mult[CONFIG_T::multiplier_limit];
+      ResetMult:
+      #pragma unroll
+      for (int imult = 0; imult < CONFIG_T::multiplier_limit; imult++) {
+          mult[imult] = 0;
+      }
+      AccumLoop1:
+      #pragma unroll
+      for(int im = 0; im < CONFIG_T::block_factor ; im++) {
           int o_index = out_index[ir][im];
-          if (o_index >= CONFIG_T::multiplier_limit) continue; // check out of bounds
-          acc[o_index] += tmp_acc[im];
-       }
+          if (o_index >= CONFIG_T::n_out) continue; // check out of bounds
+          mult[o_index] += tmp_acc[im];
+      }
+      AccumLoop2:
+      #pragma unroll
+      for (int im = 0; im < CONFIG_T::multiplier_limit; im++) {
+          acc[im] += mult[im];
+      }
    }
    Store:
    #pragma unroll
@@ -172,6 +173,7 @@ void dense_rf_lt(
   const typename CONFIG_T::bias_t    biases[CONFIG_T::n_out]
   )
 {
+    assert((CONFIG_T::multiplier_limit % CONFIG_T::n_out == 0 || CONFIG_T::reuse_factor >= CONFIG_T::n_in) && "The current Reuse Factor is not allowed");
     assert((CONFIG_T::multiplier_limit == CONFIG_T::block_factor) && "This function is correct only for RF <= N_IN");
 
     hls_register typename CONFIG_T::accum_t acc[CONFIG_T::n_out];
@@ -182,7 +184,7 @@ void dense_rf_lt(
     }
     ReuseLoop:
     #pragma nofusion
-    #pragma ivdep
+    #pragma speculated_iterations 0
     for (int ir = 0; ir < CONFIG_T::reuse_factor; ir++) {
        hls_register typename CONFIG_T::accum_t mult[CONFIG_T::block_factor];
        MultLoop:
@@ -221,7 +223,6 @@ void dense(
    const typename CONFIG_T::bias_t    biases[CONFIG_T::n_out]
    )
 {
-    assert((CONFIG_T::multiplier_limit % CONFIG_T::n_out == 0 || CONFIG_T::reuse_factor >= CONFIG_T::n_in) && "The current Reuse Factor is not allowed");
     if (CONFIG_T::reuse_factor <= CONFIG_T::n_in) {
         dense_rf_lt<data_T, res_T, CONFIG_T>(data, res, weights, biases);
     } else {

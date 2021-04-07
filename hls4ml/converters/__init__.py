@@ -58,7 +58,7 @@ def convert_from_yaml_config(yamlConfig):
         else:
             raise Exception("TensorFlow not found. Please install TensorFlow.")
     else:
-        model = keras_to_hls(yamlConfig)
+        model = keras_to_hls(yamlConfig) #escolhe este
 
     return model
 

@@ -20,12 +20,13 @@
 #ifndef MYPROJECT_H_
 #define MYPROJECT_H_
 
-#include "HLS/hls.h"
-#include <complex>
 #ifndef __INTELFPGA_COMPILER__
-#include "ref/ac_int.h"
-#include "ref/ac_fixed.h"
+#include "ac_int.h"
+#include "ac_fixed.h"
+#include <complex>
+#define hls_register
 #else
+#include "HLS/hls.h"
 #include "HLS/ac_int.h"
 #include "HLS/ac_fixed.h"
 #endif
@@ -41,9 +42,18 @@ struct outputdat {
 };
 
 
-// Prototype of top level function for C-synthesis
+#ifndef __INTELFPGA_COMPILER__
+outputdat myproject(
+    inputdat input1
+);
+#else
+//hls-fpga-machine-learning insert cpragmas
+hls_max_concurrency(0)
+hls_component_ii(1)
+hls_scheduler_target_fmax_mhz(200)
 component outputdat myproject(
     inputdat input1
 );
+#endif
 
 #endif

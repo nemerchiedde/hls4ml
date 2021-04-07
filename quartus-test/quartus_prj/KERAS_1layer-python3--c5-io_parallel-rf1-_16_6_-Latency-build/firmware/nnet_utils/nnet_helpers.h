@@ -27,8 +27,6 @@
 #include <algorithm>
 #include <map>
 #include "nnet_common.h"
-#include "HLS/hls.h"
-#include "HLS/math.h"
 
 namespace nnet {
 
@@ -36,6 +34,12 @@ template<class srcType, class dstType, size_t SIZE>
 void convert_data(srcType *src, dstType *dst) {
   for (size_t i = 0; i < SIZE; i++) {
     dst[i] = dstType(src[i]);
+  }
+}
+template<class srcType, class dstType, size_t SIZE>
+void convert_data_back(srcType *src, dstType *dst) {
+  for (size_t i = 0; i < SIZE; i++) {
+    dst[i] = static_cast<dstType>(src[i].to_double());
   }
 }
 extern bool trace_enabled;

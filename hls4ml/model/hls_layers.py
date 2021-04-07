@@ -218,13 +218,17 @@ class Layer(object):
         self.index = model.next_layer()
         self.inputs = inputs
         self.outputs = outputs
+        print('hls_layers(221) - Layer_output:', self.outputs)
         if self.outputs is None:
             self.outputs = [self.name]
 
         self.attributes = attributes
+        print('hls_layers(226) - atributos:', attributes)
 
         self._function_template = self.model.config.backend.get_function_template(self.__class__.__name__)
+        print("hls_layers(229) - self._function_template:", self._function_template)
         self._config_template = self.model.config.backend.get_config_template(self.__class__.__name__)
+        print("hls_layers(230) - self._config_template:", self._config_template)
         self.include_list = self.model.config.backend.get_include_list(self.__class__.__name__)
         self.weights = OrderedDict()
         self.variables = OrderedDict()
@@ -235,6 +239,7 @@ class Layer(object):
         self.reuse_factor = self.model.config.get_reuse_factor(self)
 
         layer_config = self.model.config.get_layer_config(self)
+        print("hls_layers(241) - self.model.config.get_layer_config(self):", self.model.config.get_layer_config(self))
         for config_key, config_value in layer_config.items():
             if config_key in self.attributes:
                 print('WARNING: Config parameter "{}" overwrites an existing attribute in layer "{}" ({})'.format(config_key, self.name, self.__class__.__name__))
@@ -253,14 +258,18 @@ class Layer(object):
 
     def get_input_node(self, input_name=None):
         if input_name is not None:
+            print('hls_layers(260) - input_name:', input_name, self.model.graph.get(input_name))
             return self.model.graph.get(input_name)
         else:
+            print('hls_layers(263) - input_name:', self.inputs, self.inputs[0], self.model.graph.get(self.inputs[0]))
             return self.model.graph.get(self.inputs[0])
 
-    def get_input_variable(self, input_name=None):
+    def get_input_variable(self, input_name=None):  #recupera
         if input_name is not None:
+            print('hls_layers(266) - input_name:', input_name)
             return self.model.get_layer_output_variable(input_name)
         else:
+            print('hls_layers(269) - input_name:', input_name, 'inputd:', self.inputs[0])
             return self.model.get_layer_output_variable(self.inputs[0])
 
     def get_output_nodes(self, output_name=None):
@@ -282,14 +291,15 @@ class Layer(object):
 
     def get_variables(self):
         return self.variables.values()
-
+    shape=[]
     def add_output_variable(self, shape, dim_names, out_name=None, var_name='layer{index}_out', type_name='layer{index}_t', precision=None, pragma='auto'):
         if out_name is None:
             out_name = self.outputs[0]
+            print('hls_layers(295) - out_name:',out_name) #lstm_input, lstm, dense, dense_relu
 
         if precision is None:
             precision, _ = self.model.config.get_precision(self, var='result')
-
+            print('hls_layers(299) - precision:',precision) # ac_fixed<16, 6, true>
         if pragma == 'auto':
             if self.model.config.get_config_value('IOType') == 'io_serial':
                 pragma = 'stream'
@@ -298,9 +308,14 @@ class Layer(object):
                     pragma = 'reshape'
                 else:
                     pragma = 'partition'
-
-        out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
-
+        print('hls_layers(308) - pragma:', pragma)  #1- reshape,  2,3,4- Partition
+        #out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        if out_name == 'lstm_input':
+            shape = [1, 1]
+            out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        else:
+            out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        print('hls_layers(310) - out:', out.shape, out.type.name, out.dim_names, out_name)
         self.variables[out_name] = out
         self.model.register_output_variable(out_name, out)
 
@@ -357,9 +372,13 @@ class Layer(object):
         params = {}
         params['config'] = 'config{}'.format(self.index)
         params['input_t'] = self.get_input_variable().type.name
+        print('hls_layers(367) - params[input_t]:', params['input_t'])
         params['output_t'] = self.get_output_variable().type.name
+        print('hls_layers(369) - params[output_t]:', params['output_t'])
         params['input'] = self.get_input_variable().name
+        print('hls_layers(371) - params[input]:', params['input'])
         params['output'] = self.get_output_variable().name
+        print('hls_layers(373) - params[output]:', params['output'])
 
         return params
 
@@ -689,8 +708,8 @@ class Activation(Layer):
         params['table_t'] = self.get_precision_string(self.get_attr('table_t'))
 
         return self._config_template.format(**params)
-	
-	
+
+
 
 class ParametrizedActivation(Activation):
     def function_cpp(self):
@@ -897,14 +916,16 @@ class Lstm(Layer):
     def initialize(self):
         #Output data definitions
         shape = [self.get_attr('n_in')]
+        print("hls_layers(911) - shape=10:", shape)
         dims = ['OUT_HEIGHT_{}'.format(self.index)]
+        print("hls_layers(913) - dims:",dims)
         self.add_output_variable(shape, dims)
 
         data  = self.model.get_weights_data(self.name, 'kernel')
         data2 = self.model.get_weights_data(self.name, 'recurrent_kernel')
         data3 = self.model.get_weights_data(self.name, 'bias')
-        print("data3:")
-        print(data3)
+        #print("data3:")
+        #print(data3)
         #print(self.get_layers.get_weights())
         weight_types=["i","f","c","o"]
         for i in range (0,4):
@@ -916,6 +937,14 @@ class Lstm(Layer):
 
     def function_cpp(self):
         params = self._default_function_params()
+        print("hls_layer(935) - params : ", params)
+        print('hls_model(369) -get_output ', [i.shape for i in self.model.get_output_variables()])
+        for i in self.model.get_output_variables():
+           print(i)
+        for i in self.model.get_output_variables():
+            print(str(i))
+        print("hls_layers(937) - lstm_input: ", params['input'])
+
         params['weights']=""
         for i in ["kernel","recurrent_kernel","bias"]:
           for j in ["i","f","c","o"]:
@@ -923,7 +952,8 @@ class Lstm(Layer):
             if not(i == "bias" and j == "o"):
               params['weights'] +=","
       #  params['algorithm'] = self.get_attr('algorithm')
-
+        #print('Print 942',**params)
+        print("hls_layer(943) - self._function_template.format(**params) :", self._function_template.format(**params))
         return [self._function_template.format(**params)]
 
     def config_cpp(self):

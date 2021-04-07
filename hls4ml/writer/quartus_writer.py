@@ -232,8 +232,8 @@ class QuartusWriter(Writer):
 
     def write_parameters(self, model):
         filedir = os.path.dirname(os.path.abspath(__file__))
-        f = open(os.path.join(filedir,'../templates/quartus/firmware/parameters.h'),'r')
-        fout = open('{}/firmware/parameters.h'.format(model.config.get_output_dir()),'w')
+        f = open(os.path.join(filedir, '../templates/quartus/firmware/parameters.h'), 'r')
+        fout = open('{}/firmware/parameters.h'.format(model.config.get_output_dir()), 'w')
 
         for line in f.readlines():
 
@@ -245,9 +245,8 @@ class QuartusWriter(Writer):
             elif "//hls-fpga-machine-learning insert layer-config" in line:
                 newline = line
                 for layer in model.get_layers():
-                    print('Parametre1',layer)
                     config = layer.config_cpp()
-                    print('Parametre2',config)
+                    print('quartus_writer(249) - config: ',config)
                     if config:
                         newline += config + '\n'
             else:
@@ -438,7 +437,7 @@ class QuartusWriter(Writer):
         ###################
         # Makefile
         ###################
-        
+
         filedir = os.path.dirname(os.path.abspath(__file__))
         f = open(os.path.join(filedir,'../templates/quartus/Makefile'),'r')
         fout = open('{}/Makefile'.format(model.config.get_output_dir()),'w')
@@ -499,7 +498,7 @@ class QuartusWriter(Writer):
             rmtree(dstpath)
 
         copytree(srcpath, dstpath)
-   
+
     def write_activation_tables(self, model):
 
         ###################
@@ -817,6 +816,10 @@ class QuartusWriter(Writer):
 
          taille_my_lines=len(my_lines)
          i = 0
+         #activation = 0
+         #recurrent_activation = 0
+         #x = dstpath.replace('//hls_fpga insert recurrent_activation Gate I --- Gate I','\tnnet::'+ layer_activation +'<data_T,data_T,CONFIG_T>(x_c, cell_activation); //hls_fpga insert activation --- Gate I\n')
+
 
          while i < taille_my_lines:
 
@@ -830,7 +833,7 @@ class QuartusWriter(Writer):
 
             if actv_gate_x_c != -1:
                res = "\t//hls_fpga insert activation  --- Gate X_C\n\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(x_c, cell_activation);\n"
-                       
+
             elif actv_gate_c  != -1:
                res = "\t//hls_fpga insert activation --- Gate C\n\tnnet::"+ layer_activation +"<data_T,data_T,CONFIG_T>(c, cell_activation);\n"
 
@@ -842,25 +845,53 @@ class QuartusWriter(Writer):
 
             elif rec_actv_gate_o != -1:
                res = "\t//hls_fpga insert recurrent_activation  --- Gate O\n\tnnet::" + layer_rec_activation + "<data_T,data_T,CONFIG_T>(x_o, o);\n"
-                   
+
             else:
                res = my_lines[i]
-          
+
             my_lines[i] = res
-            i += 1    
-              	 
+            i += 1
+
          with open(dstpath ,"w") as myfile:
              myfile.writelines(my_lines)
          return
 
     def write_input_dimention(self, model):
 
-         if return_sequences:
-             print('Resultat',model.batch_input[0])
-         else:
-             #print ('Resultado', model.layer_list['input_shape'])
-             print('Resultat',model.batch_input[0])
-         return
+        dstpath = './{}/firmware/nnet_utils/lstm_cell.h'.format(model.config.get_output_dir())
+        with open(dstpath,"r") as myfile:
+             my_lines = myfile.readlines()
+
+        taille_my_lines=len(my_lines)
+        i = 0
+        while i < taille_my_lines:
+
+            input_form = my_lines[i].find('//input0 - verification')
+            output_form = my_lines[i].find('//output - verification')
+            if not model.return_sequences:
+                #print('n_in', model.batch_input[0])
+                if input_form != -1:
+                    res = "\t//input0 - verification\n\tfor (int j=CONFIG_T::n_timestamp-1;j>0; j--){\n\t\tinputs[j] = inputs0[j-1];\n\t}\n"
+                elif output_form != -1:
+                    res = "\t//output - verification\n"
+                else:
+                    res = my_lines[i]
+            else:
+                # print ('Resultado', model.layer_list['input_shape'])
+                #print('n_in', model.batch_input[0])
+                if input_form != -1:
+                    res = "\t//input0 - verification\n\tinputs[0]=input0[0];\n"
+                elif output_form != -1:
+                    res = "\t//output - verification\n"
+                else:
+                    res = my_lines[i]
+
+            my_lines[i] = res
+            i += 1
+
+        with open(dstpath ,"w") as myfile:
+             myfile.writelines(my_lines)
+        return
 
     def write_hls(self, model):
         print('Writing HLS project')
@@ -876,8 +907,7 @@ class QuartusWriter(Writer):
         self.write_build_script(model)
         self.write_nnet_utils(model)
         self.write_activation_lstm(model)
-        #self.write_input_dimention(model)
+        self.write_input_dimention(model)
         self.write_activation_tables(model)
         self.write_tar(model)
         print('Done')
-

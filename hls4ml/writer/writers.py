@@ -15,4 +15,7 @@ def register_writer(name, writer_cls):
     writer_map[name] = writer_cls
 
 def get_writer(name):
+    
+    a=writer_map[name]
+    print("write", a)
     return writer_map[name]()

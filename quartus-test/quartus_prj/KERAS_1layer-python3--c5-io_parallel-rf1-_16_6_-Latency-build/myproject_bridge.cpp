@@ -59,7 +59,7 @@ void myproject_float(
     outputdat layer5_out_ap;
     layer5_out_ap = myproject(input_1_ap);
 
-    nnet::convert_data<result_t, float, N_LAYER_4>(layer5_out_ap.data, layer5_out);
+    nnet::convert_data_back<result_t, float, N_LAYER_4>(layer5_out_ap.data, layer5_out);
 }
 
 void myproject_double(
@@ -74,7 +74,7 @@ void myproject_double(
     outputdat layer5_out_ap;
     layer5_out_ap = myproject(input_1_ap);
 
-    nnet::convert_data<result_t, double, N_LAYER_4>(layer5_out_ap.data, layer5_out);
+    nnet::convert_data_back<result_t, double, N_LAYER_4>(layer5_out_ap.data, layer5_out);
 }
 
 }
