@@ -2,6 +2,7 @@
 
 basedir=quartus_prj
 parallel=1
+ctest=0
 
 
 function print_usage {
@@ -33,7 +34,7 @@ function run_quartus {
 
 function run_ctest {
    dir=$1
-   echo "Building project in ${dir}"
+   echo "Building ctest-project in ${dir}"
    cd ${dir}
    cmd="make myproject-ctest"
    eval ${cmd}
@@ -56,7 +57,7 @@ function run_simulation {
    return ${failed}
 }
 
-while getopts ":d:nhis" opt; do
+while getopts ":d:nhic" opt; do
    case "$opt" in
    d) basedir=$OPTARG
       ;;
@@ -66,8 +67,8 @@ while getopts ":d:nhis" opt; do
       print_usage
       exit
       ;;
-   s)
-      ctest=true
+   c)
+      ctest=1
       ;;
    :)
       echo "Option -$OPTARG requires an argument."
@@ -95,7 +96,7 @@ for archive in *.tar.gz ; do
 done
 #run ctest
 # Run sequentially
-if [ ctest ]; then
+if [ $ctest -eq 1 ]; then
   for dir in *-"build" ; do
      run_ctest "${dir}"
   done
