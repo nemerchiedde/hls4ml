@@ -65,11 +65,15 @@ class Variable(object):
         self.cppname = re.sub(r'\W|^(?=\d)','_', self.name)
 
 class ArrayVariable(Variable):
+
     def __init__(self, shape, dim_names, var_name='layer{index}', type_name='layer{index}_t', precision=None, pragma='partition', **kwargs):
         super(ArrayVariable, self).__init__(var_name, type_name, precision, **kwargs)
         self.shape = shape
         self.dim_names = dim_names
         self.pragma = pragma
+
+    def __str__(self):
+        return 'ArrayVariable of type: {type}, name: {name} shape: {shape}'.format(type=self.type.name, name=self.cppname, shape=self.shape)
 
     def get_shape(self):
         return zip(self.dim_names, self.shape)
@@ -266,7 +270,7 @@ class Layer(object):
 
     def get_input_variable(self, input_name=None):  #recupera
         if input_name is not None:
-            print('hls_layers(266) - input_name:', input_name)
+            print('hls_layers(266) - input_name:', input_name) #nao entra
             return self.model.get_layer_output_variable(input_name)
         else:
             print('hls_layers(269) - input_name:', input_name, 'inputd:', self.inputs[0])
@@ -278,6 +282,7 @@ class Layer(object):
         return [node for node in self.model.graph.values() if node.inputs[0] == output_name]
 
     def get_output_variable(self, output_name=None):
+
         if output_name is not None:
             return self.variables[output_name]
         else:
@@ -291,7 +296,9 @@ class Layer(object):
 
     def get_variables(self):
         return self.variables.values()
-    shape=[]
+    #shape=[]
+
+
     def add_output_variable(self, shape, dim_names, out_name=None, var_name='layer{index}_out', type_name='layer{index}_t', precision=None, pragma='auto'):
         if out_name is None:
             out_name = self.outputs[0]
@@ -309,12 +316,12 @@ class Layer(object):
                 else:
                     pragma = 'partition'
         print('hls_layers(308) - pragma:', pragma)  #1- reshape,  2,3,4- Partition
-        #out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
-        if out_name == 'lstm_input':
-            shape = [1, 1]
-            out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
-        else:
-            out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        #if out_name == 'lstm_input':
+        #    shape = [1, 1]
+        #    out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
+        #else:
+    #        out = ArrayVariable(shape, dim_names, var_name=var_name, type_name=type_name, precision=precision, pragma=pragma, index=self.index)
         print('hls_layers(310) - out:', out.shape, out.type.name, out.dim_names, out_name)
         self.variables[out_name] = out
         self.model.register_output_variable(out_name, out)
@@ -774,7 +781,7 @@ class BatchNormalization(Layer):
 
         scale = gamma / np.sqrt(var + self.get_attr('epsilon'))
         bias = beta - gamma * mean / np.sqrt(var + self.get_attr('epsilon'))
-
+        print("hls_layers(784) - bias :", bias)
         self.add_weights_variable(name='scale', var_name='s{index}', data=scale)
         self.add_weights_variable(name='bias', var_name='b{index}', data=bias)
 
@@ -913,6 +920,7 @@ class Transpose(Layer):
 
 
 class Lstm(Layer):
+
     def initialize(self):
         #Output data definitions
         shape = [self.get_attr('n_in')]
@@ -934,16 +942,18 @@ class Lstm(Layer):
           self.add_weights_variable(name='bias_%s'% weight_types [i], var_name='bias_%s_{index}' % weight_types [i], data=data3[i*self.get_attr('n_in'):(i+1)*(self.get_attr('n_in'))], quantizer=self.get_attr('weight_quantizer'), compression=None)
 
 
-
     def function_cpp(self):
         params = self._default_function_params()
+        if self.model.return_sequences:
+            params['input'] = params['input'] + '[0]'
+        else:
+            params['input'] = params['input']
         print("hls_layer(935) - params : ", params)
         print('hls_model(369) -get_output ', [i.shape for i in self.model.get_output_variables()])
-        for i in self.model.get_output_variables():
-           print(i)
-        for i in self.model.get_output_variables():
-            print(str(i))
         print("hls_layers(937) - lstm_input: ", params['input'])
+
+        for i in self.model.get_output_variables():
+            print("hls_teste", str(i))
 
         params['weights']=""
         for i in ["kernel","recurrent_kernel","bias"]:

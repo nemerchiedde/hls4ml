@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 import json
 import math
-
+from hls4ml.utils import plot_model
 from hls4ml.model import HLSModel
 #from hls4ml.writer.quartus_writer import write_activation_lstm
 
@@ -256,15 +256,13 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
 
 
 
-        if keras_layer['class_name'] =='LSTM':
-            layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config, return_sequences)
-        else:
-            layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
+        #if keras_layer['class_name'] =='LSTM':
+        #    layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config, return_sequences)
+        #else:
+        #    layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
 
 
-
-
-        #layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
+        layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
         #print('layer_handlers',layer_handlers[keras_class])
         #print('Layer name: {}, layer type: {}, current shape: {}'.format(layer['name'], layer['class_name'], input_shapes))
         layer_list.append( layer )
@@ -325,6 +323,7 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
     print("keras_to_hls(325) - output_layers: ", output_layers)
     print('keras_to_hls(326) - input_layer: ', input_layers)
     hls_model = HLSModel(config, reader, activation_type, return_sequences, layer_list, input_layers, output_layers)
+    plot = plot_model(hls_model)
     print('HLS_MODEL: ', hls_model)
     print('**Input_Layers**', input_layers)
     print('**Output_Layers**', output_layers)

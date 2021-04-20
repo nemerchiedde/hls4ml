@@ -366,7 +366,7 @@ class HLSModel(object):
         self.output_vars[out_name] = variable
 
     def get_output_variables(self):
-        
+
         variables = []
         for out in self.outputs:
             variables.append(self.output_vars[out])
@@ -377,6 +377,7 @@ class HLSModel(object):
         #a=self.output_vars[output_name]
         #print('hls_model(377) - a = self.output_vars[output_name].include_lists: ', a.
         #print('hls_model(378) - a[lstm_input]: ', a['lstm_input'])
+        print("hls_model(380) - self.output_vars[output_name]",self.output_vars[output_name])
         return self.output_vars[output_name]
 
     def write(self):

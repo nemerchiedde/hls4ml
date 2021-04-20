@@ -1,6 +1,12 @@
 #ifndef LSTMCELLH
 #define LSTMCELLH
 
+#ifndef HLS_SYNTHESIS
+#include <string>
+#include <iostream>
+//#include "HLS/iostream"
+#endif
+
 #include "HLS/hls.h"
 #include <stdio.h>
 #include "HLS/ac_int.h"
@@ -28,10 +34,11 @@ struct lstm_config : public nnet::activ_config{
 #ifndef SIMULATION_TIMES
   #define SIMULATION_TIMES 1
 #endif
+
+
 #ifndef TIMESTAMP_UNROLLING
   #define TIMESTAMP_UNROLLING
 #endif
-
 
 
 
@@ -102,6 +109,7 @@ void lstm_cell(
           WEIGHT_T *BI   , WEIGHT_T *BF   , WEIGHT_T *BC   , WEIGHT_T *BO);
 
 template<class data_T, class res_T,class CONFIG_T ,class WEIGHT_T>
+//lstm_network - verification
 void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
           const WEIGHT_T *WI   , const WEIGHT_T *WF   , const WEIGHT_T *WC   , const WEIGHT_T *WO  ,
           const WEIGHT_T *RWI  , const WEIGHT_T *RWF  , const WEIGHT_T *RWC  , const WEIGHT_T *RWO ,
@@ -125,11 +133,19 @@ void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
 
   #pragma unroll
   #pragma ivdep
+
   //input0 - verification
-  for (int j=CONFIG_T::n_timestamp-1;j>0; j--){
-    inputs[j] = inputs[j-1];
-  }
-  inputs[0]=input0;
+
+  //for (int j=CONFIG_T::n_timestamp-1;j>0; j--){
+  //  inputs[j] = inputs[j-1];
+  //}
+  //inputs[0]=input0;
+  //printf( typeid(&inputs).name(), "inputs");
+  //std::cout << typeid(&input0).name()<<"input0"<<std::endl;
+  //for (int j=0; j<CONFIG_T::n_timestamp; j++){
+  //  inputs[j] = input0[j];
+  //}
+
 
 
   #pragma unroll TIMESTAMP_UNROLLING
@@ -249,10 +265,14 @@ void lstm_cell(
         for (int x = 0; x < CONFIG_T::n_in; x++) {
           hidden_state_o[x]=h[x];
           cell_state_o[x]=c[x];
+          #ifndef HLS_SYNTHESIS
+          //printf("Hugo : % ",hidden_state_o[x]);
+          //std::cout<<"HU"<<cell_state_o[x]<<std::endl;
+          #endif
         }
-
+        //graph(hidden_state_o);
         return;
 
-
+  //std::cout<<"hugoooo"<<std::endl;
 }
 #endif

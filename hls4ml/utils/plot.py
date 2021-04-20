@@ -106,8 +106,8 @@ def model_to_dot(model,
         if show_shapes:
             def format_shape(shape):
                 return str(tuple(shape)).replace(str(None), '?')
-            
-            input_labels = '?' 
+
+            input_labels = '?'
             try:
                 output_labels = format_shape(layer.get_output_variable().shape)
             except AttributeError:
@@ -186,7 +186,7 @@ def plot_model(model,
                rankdir='TB',
                dpi=96):
     """Converts a HLS model to dot format and save to a file.
-  
+
     Arguments:
         model: A HLS model instance
         to_file: File name of the plot image.
@@ -198,7 +198,7 @@ def plot_model(model,
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
         dpi: Dots per inch.
-  
+
     Returns:
         A Jupyter notebook Image object if Jupyter is installed.
         This enables in-line display of the model plots in notebooks.
@@ -209,9 +209,10 @@ def plot_model(model,
                        show_precision=show_precision,
                        rankdir=rankdir,
                        dpi=dpi)
+    print("Plot(212) - dot: ",dot)
     if dot is None:
         return
-    
+
     if to_file is not None:
         _, extension = os.path.splitext(to_file)
         if not extension:
@@ -229,7 +230,11 @@ def plot_model(model,
             import tempfile
 
             temp = tempfile.NamedTemporaryFile(suffix='.png')
+            print('plot(232) - :Veificar')
             dot.write(temp.name, format='png')
             return display.Image(filename=temp.name)
         except ImportError:
             pass
+
+def root_plot(model, to_file='model.png'):
+    return

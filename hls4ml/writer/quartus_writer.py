@@ -65,7 +65,6 @@ class QuartusWriter(Writer):
         h_file.close()
 
     def write_project_dir(self, model):
-        print("FOI?")
         if not os.path.isdir("{}/firmware/weights".format(model.config.get_output_dir())):
             os.makedirs("{}/firmware/weights".format(model.config.get_output_dir()))
 
@@ -73,7 +72,7 @@ class QuartusWriter(Writer):
         ###################
         ## myproject.cpp
         ###################
-        print("FOI?")
+
         filedir = os.path.dirname(os.path.abspath(__file__))
         f = open(os.path.join(filedir,'../templates/quartus/firmware/myproject.cpp'),'r')
         fout = open('{}/firmware/{}.cpp'.format(model.config.get_output_dir(), model.config.get_project_name()),'w')
@@ -131,8 +130,6 @@ class QuartusWriter(Writer):
                             name = var.definition_cpp_name()
                             newline += '    ' + 'hls_register outputdat ' + name + ';\n'
                             var.name += '.data'
-                 #   if layer.get_attr('activation') == 'tanh':
-                 #       layer.set_attr('activation') == 'dense_tanh'
                     func = layer.function_cpp()
                     if func:
                         for line in func:
@@ -852,45 +849,53 @@ class QuartusWriter(Writer):
             my_lines[i] = res
             i += 1
 
-         with open(dstpath ,"w") as myfile:
+         with open(dstpath, "w") as myfile:
              myfile.writelines(my_lines)
          return
 
     def write_input_dimention(self, model):
 
         dstpath = './{}/firmware/nnet_utils/lstm_cell.h'.format(model.config.get_output_dir())
-        with open(dstpath,"r") as myfile:
+        with open(dstpath, "r") as myfile:
              my_lines = myfile.readlines()
 
-        taille_my_lines=len(my_lines)
+        taille_my_lines = len(my_lines)
         i = 0
         while i < taille_my_lines:
 
             input_form = my_lines[i].find('//input0 - verification')
             output_form = my_lines[i].find('//output - verification')
-            if not model.return_sequences:
+            lstm_network = my_lines[i].find('//lstm_network - verification')
+            if model.return_sequences:
                 #print('n_in', model.batch_input[0])
+
                 if input_form != -1:
-                    res = "\t//input0 - verification\n\tfor (int j=CONFIG_T::n_timestamp-1;j>0; j--){\n\t\tinputs[j] = inputs0[j-1];\n\t}\n"
+                    res = "\t//input0 - verification\n\tfor (int j=CONFIG_T::n_timestamp-1;j>0; j--){\n\t\tinputs[j] = inputs[j-1];\n\t}\n\t\tinputs[0]=input0;\n"
                 elif output_form != -1:
                     res = "\t//output - verification\n"
                 else:
                     res = my_lines[i]
             else:
-                # print ('Resultado', model.layer_list['input_shape'])
-                #print('n_in', model.batch_input[0])
                 if input_form != -1:
-                    res = "\t//input0 - verification\n\tinputs[0]=input0[0];\n"
+                    res = "\t//input0 - verification\n\tfor (int j=0; j<CONFIG_T::n_timestamp; j++){\n\t\tinputs[j] = input0[j];\n\t}\n"
                 elif output_form != -1:
                     res = "\t//output - verification\n"
+                elif lstm_network != -1:
+                    res = my_lines[i]
+                    i += 1
+                    first_split_lstm = my_lines[i].split("input0")[1]
+                    second_split_lstm = first_split_lstm.split(",res_T res")
+                    second_split_lstm[0] = "[CONFIG_T::n_timestamp]"
+                    res = "void lstm_network(data_T input0" + ",res_T res".join(second_split_lstm)
+
                 else:
                     res = my_lines[i]
 
             my_lines[i] = res
             i += 1
 
-        with open(dstpath ,"w") as myfile:
-             myfile.writelines(my_lines)
+        with open(dstpath, "w") as myfile:
+            myfile.writelines(my_lines)
         return
 
     def write_hls(self, model):
@@ -906,6 +911,9 @@ class QuartusWriter(Writer):
         self.write_bridge(model)
         self.write_build_script(model)
         self.write_nnet_utils(model)
+        #if (model.inputs == 'lstm_input'):
+        #    print("quartus_writer(915) : ", model.inputs)
+        #    self.write_activation_lstm(model)
         self.write_activation_lstm(model)
         self.write_input_dimention(model)
         self.write_activation_tables(model)
