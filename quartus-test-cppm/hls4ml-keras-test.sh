@@ -6,5 +6,7 @@
 # Remove parameter -s to disable synthesis. -p controls the number of parallel tasks -c do only the c++ compilation
 ./build-prj.sh
 
+#./build-prj.sh -c
+
 # Clean-up at the end
 #./cleanup.sh

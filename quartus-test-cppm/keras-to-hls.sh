@@ -73,7 +73,7 @@ shift $((OPTIND-1))
 
 models=("$@") #Modelo ./keras-to-hls.sh
 if [[ ${#models[@]} -eq 0 ]]; then #nao tem modelo
-   echo "No models specified." 
+   echo "No models specified."
    exit 1 #Termina o programa
 fi
 

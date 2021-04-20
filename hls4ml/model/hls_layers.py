@@ -918,7 +918,6 @@ class Transpose(Layer):
 
         return self._config_template.format(**params)
 
-
 class Lstm(Layer):
 
     def initialize(self):
@@ -973,8 +972,6 @@ class Lstm(Layer):
         params['n_timestamp'] = self.get_attr('n_timestamp')
 
         return self._config_template.format(**params)
-
-
 
 
 layer_map = {

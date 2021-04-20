@@ -27,7 +27,8 @@
 #include "firmware/parameters.h"
 #include "firmware/myproject.h"
 
-#define CHECKPOINT 5000
+//#define CHECKPOINT 5000
+#define CHECKPOINT 1
 
 // This function is written to avoid stringstream, which is
 // not supported in cosim 20.1, and because strtok
@@ -73,13 +74,11 @@ int main(int argc, char **argv)
   if (fin.is_open() && fpr.is_open()) {
      std::cout << "/* message entra? */" << std::endl;
     //hls-fpga-machine-learning insert component-io
-    std::vector<std::vector<float> > predictions;
-    unsigned int num_iterations = 0;
-    for (; std::getline(fin,iline) && std::getline (fpr,pline); num_iterations++) {
-      if (num_iterations % CHECKPOINT == 0) {
-	std::cout << "Processing input "  << num_iterations << std::endl;
-      }
-
+    std::vector<std::vector<float>> pr(num_iterations,std::vector<float>());
+    while ( std::getline(fin,iline) && std::getline (fpr,pline) ) {
+      if (e % CHECKPOINT == 0) std::cout << "Processing input " << e << std::endl;
+      char* cstr=const_cast<char*>(iline.c_str());
+      char* current;
       std::vector<float> in;
       std::vector<float> pr;
       float current;
@@ -114,8 +113,9 @@ int main(int argc, char **argv)
 
     //hls-fpga-machine-learning insert run
 
-
-    for(int j = 0; j < num_iterations; j++) {
+      e++;
+      //hls-fpga-machine-learning insert top-level-function
+    for(int j = 0; j < e; j++) {
       //hls-fpga-machine-learning insert tb-output
       if (j % CHECKPOINT == 0) {
         std::cout << "Predictions" << std::endl;
@@ -134,6 +134,7 @@ int main(int argc, char **argv)
     //hls-fpga-machine-learning insert top-level-function
 
     //hls-fpga-machine-learning insert run
+    //CHECK HERE
 
       for (int j = 0; j < num_iterations; j++) {
         //hls-fpga-machine-learning insert output

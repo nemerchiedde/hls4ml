@@ -181,7 +181,7 @@ transpose_config_template = """struct config{index} : nnet::transpose_config {{
 
 
 
-########################################## LSTM
+####################################### LSTM
 lstm_config_template = """struct config{index} : lstm_config {{
     static const unsigned n_in = {n_in};
     static const unsigned n_out = {n_in};

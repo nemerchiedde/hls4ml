@@ -52,7 +52,7 @@ if [ -z ${models_file} ]; then #nao tem modelo file entao
       echo "No file provided and ${models_var} variable not set. Nothing to do." #erro
       exit 1 #termina o codigo
    else
-      IFS=";" read -ra model_line <<< "${!models_var}" #le o arquivo defeaut 
+      IFS=";" read -ra model_line <<< "${!models_var}" #le o arquivo defeaut
    fi
 else
    readarray model_line < "${models_file}" #le o arquivo enviado
@@ -75,7 +75,8 @@ do
       done
       params[7]=${model_def[0]}
 
-      cmd="./keras-to-hls.sh -p 3 ${dir} ${params[0]}${params[1]}${params[2]}${params[3]}${params[4]}${params[5]}${params[6]}${params[7]}" #eco é o print do .sh
+      cmd="./keras-to-hls.sh -p 3 ${dir} ${params[0]}${params[1]}${params[2]}${params[3]}${params[4]}${params[5]}${params[6]}${params[7]}"
+      #eco é o print do .sh
       echo $cmd
 
       ${exec} "${cmd}"

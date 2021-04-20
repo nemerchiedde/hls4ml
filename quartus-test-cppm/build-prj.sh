@@ -2,6 +2,7 @@
 
 basedir=quartus_prj
 parallel=1
+ctest=0
 
 
 function print_usage {
@@ -33,7 +34,7 @@ function run_quartus {
 
 function run_ctest {
    dir=$1
-   echo "Building project in ${dir}"
+   echo "Building ctest-project in ${dir}"
    cd ${dir}
    cmd="make myproject-ctest"
    eval ${cmd}
@@ -43,9 +44,6 @@ function run_ctest {
    cd ..
    return ${failed}
 }
-
-
-
 function run_simulation {
    dir=$1
    echo "Running sim in ${dir}"
@@ -59,7 +57,7 @@ function run_simulation {
    return ${failed}
 }
 
-while getopts ":d:nhis" opt; do
+while getopts ":d:nhic" opt; do
    case "$opt" in
    d) basedir=$OPTARG
       ;;
@@ -69,7 +67,7 @@ while getopts ":d:nhis" opt; do
       print_usage
       exit
       ;;
-   s)
+   c)
       ctest=1
       ;;
    :)
@@ -96,7 +94,6 @@ for archive in *.tar.gz ; do
    slashes="${tarpath//[^\/]}"
    mkdir -p "${dir}" && tar -xzf "${archive}" -C "${dir}" --strip-components ${#slashes}
 done
-
 #run ctest
 # Run sequentially
 if [ $ctest -eq 1 ]; then
@@ -105,7 +102,6 @@ if [ $ctest -eq 1 ]; then
   done
   exit ${failed}
 fi
-
 # Run sequentially
 for dir in *-"build" ; do
    run_quartus "${dir}"
