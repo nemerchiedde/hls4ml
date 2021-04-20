@@ -1,1 +1,0 @@
-../../../common_io/input_data/data.txt
