@@ -184,17 +184,14 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
         #print("Layer Config JSON",layer_config)
         if 'layers' in layer_config: # Newer Keras versions have 'layers' in 'config' key   #Nao entra!
             layer_config = layer_config['layers']
-            #print('Layer_config testes:',layer_config[0]['class_name'])
-
-        if layer_config[0]['class_name'] != 'InputLayer': # Nao entra!
+        if layer_config[0]['class_name'] != 'InputLayer':
             input_layer = {}
             input_layer['name'] = 'input1'
             input_layer['class_name'] = 'InputLayer'
             input_layer['input_shape'] = layer_config[0]['config']['batch_input_shape'][1:]
             layer_list.append(input_layer)
-            #print("Input shape:", input_layer['input_shape'])
-
-    elif model_arch['class_name'] in ['Model', 'Functional']:   # Nao entra!
+            print('Input shape:', input_layer['input_shape'])
+    elif model_arch['class_name'] in ['Model', 'Functional']:
         print('Interpreting Model')
         layer_config = model_arch['config']['layers']
         input_layers = [ inp[0] for inp in model_arch['config']['input_layers'] ]
