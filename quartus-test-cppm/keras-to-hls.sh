@@ -1,51 +1,54 @@
 #!/bin/bash
 
 pycmd=python
-fpgapart="xc7vx690tffg1927-2"
-backend="Vivado"
+backend="Quartus"
+fpgapart="Arria10"
 clock=5
 io=io_parallel
 rf=1
 strategy="Latency"
 type="<16,6>"
-basedir=vivado_prj
+basedir=quartus_prj
 
 sanitizer="[^A-Za-z0-9._]"
 
 function print_usage {
-   echo "Usage: `basename $0` [OPTION] MODEL..."
+   echo "Usage: `basename $0` [OPTION] MODEL[:H5FILE]..."
    echo ""
-   echo "MODEL is the name of the model pt file without extension. Multiple"
-   echo "models can be specified."
+   echo "MODEL is the name of the model json file without extension. Optionally"
+   echo "a H5 file with weights can be provided using the MODEL:H5FILE synthax."
+   echo "By default, it is assumed that weights are stored in MODEL_weights.h5."
+   echo "Multiple models can be specified."
    echo ""
    echo "Options are:"
-   echo "   -x DEVICE"
+   echo "   -p 2|3"
+   echo "      Python version to use (2 or 3). If not specified uses default"
+   echo "      'python' interpreter."
+   echo "   -f DEVICE"
    echo "      FPGA device part number. Defaults to 'xc7vx690tffg1927-2'."
    echo "   -c CLOCK"
    echo "      Clock period to use. Defaults to 5."
-   echo "   -s"
-   echo "      Use streaming I/O. If not specified uses parallel I/O."
    echo "   -r FACTOR"
    echo "      Reuse factor. Defaults to 1."
-   echo "   -g STRATEGY"
-   echo "      Strategy. 'Latency' or 'Resource'."
    echo "   -t TYPE"
-   echo "      Default precision. Defaults to '<16,6>'."
+   echo "      Default precision. Defaults to 'ap_fixed<16,6>'."
    echo "   -d DIR"
    echo "      Output directory."
-   echo "   -b backend"
-   echo "      Backend. Defalts to Vivado"
    echo "   -h"
    echo "      Prints this help message."
 }
 
-while getopts ":x:c:sr:g:t:d:b:h" opt; do
+while getopts ":p:f:c:r:t:d:h" opt; do
    case "$opt" in
-   x) fpgapart=$OPTARG
+   p) pycmd=${pycmd}$OPTARG
+      ;;
+   b) backend=$OPTARG
+      ;;
+   f) fpgapart=$OPTARG
       ;;
    c) clock=$OPTARG
       ;;
-   s) io=io_stream
+   s) io=io_serial
       ;;
    r) rf=$OPTARG
       ;;
@@ -54,8 +57,6 @@ while getopts ":x:c:sr:g:t:d:b:h" opt; do
    t) type=$OPTARG
       ;;
    d) basedir=$OPTARG
-      ;;
-   b) backend=$OPTARG
       ;;
    h)
       print_usage
@@ -80,12 +81,21 @@ mkdir -p "${basedir}"
 
 for model in "${models[@]}"
 do
-   echo "Creating config file for model '${model}'"
-   base=${model%.*}
-   file="${basedir}/${base}.yml"
+   name=${model}
+   h5=${name}"_weights"
+   IFS=":" read -ra model_h5_pair <<< "${model}" # If models are provided in "json:h5" format
+   if [[ ${#model_h5_pair[@]} -eq 2 ]]; then
+      name="${model_h5_pair[0]}"
+      h5="${model_h5_pair[1]}"
+   fi
 
-   echo "PytorchModel: ../example-models/pytorch/${model}.pt" > ${file}
-   echo "OutputDir: ${basedir}/${base}-${fpgapart//${sanitizer}/_}-c${clock}-${io}-rf${rf}-${type//${sanitizer}/_}-${strategy}" >> ${file}
+   echo "Creating config file for model '${model}'"
+   base=`echo "${h5}" | sed -e 's/\(_weights\)*$//g'`
+   file="${basedir}/${base}-${pycmd}.yml"
+
+   echo "KerasJson: ./models/${name}.json" > ${file}
+   echo "KerasH5:   ./models/${h5}.h5" >> ${file}
+   echo "OutputDir: ${basedir}/${base}-${pycmd}-${xilinxpart//${sanitizer}/_}-c${clock}-${io}-rf${rf}-${type//${sanitizer}/_}-${strategy}" >> ${file}
    echo "ProjectName: myproject" >> ${file}
    echo "FPGAPart: ${fpgapart}" >> ${file}
    echo "ClockPeriod: ${clock}" >> ${file}

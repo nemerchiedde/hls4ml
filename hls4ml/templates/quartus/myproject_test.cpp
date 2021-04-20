@@ -29,15 +29,17 @@
 #include "firmware/parameters.h"
 #include "firmware/myproject.h"
 
-#define CHECKPOINT 5000
+//#define CHECKPOINT 5000
+#define CHECKPOINT 1
 
 int main(int argc, char **argv)
 {
   //load input data from text file
+  std::ifstream fcount("tb_data/tb_input_features.dat");
   std::ifstream fin("tb_data/tb_input_features.dat");
   //load predictions from text file
   std::ifstream fpr("tb_data/tb_output_predictions.dat");
-
+  std::cout << "Openning files for simulations" << std::endl;
 
   std::string RESULTS_LOG = "tb_data/results.log";
   std::ofstream fout(RESULTS_LOG);
@@ -46,15 +48,15 @@ int main(int argc, char **argv)
   std::string pline;
   int e = 0;
 
-  int num_iterations = std::count(std::istreambuf_iterator<char>(fin),
+  int num_iterations = std::count(std::istreambuf_iterator<char>(fcount),
                    std::istreambuf_iterator<char>(), '\n');
-
+  //int num_iterations = std::count(std::istreambuf_iterator<char>(fin),
+  //                 std::istreambuf_iterator<char>(), '\n');
   if (fin.is_open() && fpr.is_open()) {
     //hls-fpga-machine-learning insert component-io
-    std::vector<float> pr[num_iterations];
+    std::vector<std::vector<float>> pr(num_iterations,std::vector<float>());
     while ( std::getline(fin,iline) && std::getline (fpr,pline) ) {
       if (e % CHECKPOINT == 0) std::cout << "Processing input " << e << std::endl;
-      e++;
       char* cstr=const_cast<char*>(iline.c_str());
       char* current;
       std::vector<float> in;
@@ -73,6 +75,7 @@ int main(int argc, char **argv)
 
       //hls-fpga-machine-learning insert data
 
+      e++;
       //hls-fpga-machine-learning insert top-level-function
     for(int j = 0; j < e; j++) {
       //hls-fpga-machine-learning insert tb-output
@@ -93,13 +96,12 @@ int main(int argc, char **argv)
     for (int i = 0; i < num_iterations; i++) {
       //hls-fpga-machine-learning insert second-top-level-function
 
-    for (int j = 0; j < num_iterations; j++) {
-      //hls-fpga-machine-learning insert output
+      for (int j = 0; j < num_iterations; j++) {
+        //hls-fpga-machine-learning insert output
 
-      //hls-fpga-machine-learning insert tb-output
+       //hls-fpga-machine-learning insert tb-output
     }
   }
-
   fout.close();
   std::cout << "INFO: Saved inference results to file: " << RESULTS_LOG << std::endl;
 

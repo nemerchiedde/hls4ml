@@ -180,17 +180,14 @@ def keras_to_hls(config):
         
         if 'layers' in layer_config: # Newer Keras versions have 'layers' in 'config' key   
             layer_config = layer_config['layers']
-           
-       
-        if layer_config[0]['class_name'] != 'InputLayer': 
+        if layer_config[0]['class_name'] != 'InputLayer':
             input_layer = {}
             input_layer['name'] = 'input1'
             input_layer['class_name'] = 'InputLayer'
             input_layer['input_shape'] = layer_config[0]['config']['batch_input_shape'][1:]
             layer_list.append(input_layer)
-           
-
-    elif model_arch['class_name'] in ['Model', 'Functional']:   
+            print('Input shape:', input_layer['input_shape'])
+    elif model_arch['class_name'] in ['Model', 'Functional']:
         print('Interpreting Model')
         layer_config = model_arch['config']['layers']
         input_layers = [ inp[0] for inp in model_arch['config']['input_layers'] ]
@@ -250,10 +247,7 @@ def keras_to_hls(config):
         
         layer, output_shape = layer_handlers[keras_class](keras_layer, input_names, input_shapes, reader, config)
         layer_list.append( layer )
-        print('layer',layer)
-        print('output_shape',output_shape) 
-        
-        if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'LSTM']:# + qkeras_layers: #Nao entra a LSTM, somente o DENSE
+        if 'activation' in layer and layer['class_name'] not in ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'LSTM']:# + qkeras_layers:
             act_layer = {}
             
             act_layer['name'] = layer['name'] + '_' + layer['activation']

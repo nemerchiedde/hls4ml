@@ -33,8 +33,6 @@ struct lstm_config : public nnet::activ_config{
 #endif
 
 
-
-
 template<class data_T, class res_T,typename CONFIG_T,class WEIGHT_T>
 void multiply_W(data_T input, res_T *out, const WEIGHT_T *weight) {
     MULTIPLY_W_LOOP:
@@ -227,7 +225,7 @@ void lstm_cell(
         multiply_U<data_T,data_T,CONFIG_T,WEIGHT_T>(hidden_state, c_c,RWC);
         add_vectors<data_T,data_T,CONFIG_T>(x_c, c_c);
 
-	//hls_fpga insert activation  --- Gate X_C
+	      //hls_fpga insert activation  --- Gate X_C
 
         multiply_vectors<data_T,data_T,CONFIG_T>(f, cell_state, c);
         multiply_vectors<data_T,data_T,CONFIG_T>(i, cell_activation, c_c);
@@ -237,9 +235,8 @@ void lstm_cell(
         add_vectors<data_T,data_T,CONFIG_T>(x_o, o_c);
         //hls_fpga insert recurrent_activation  --- Gate O
 
-	//hls_fpga insert activation --- Gate C
+	      //hls_fpga insert activation --- Gate C
         multiply_vectors<data_T,data_T,CONFIG_T>(o, cell_activation, h);
-
         
        OUTPUT_WRITE_LOOP:
         #pragma unroll

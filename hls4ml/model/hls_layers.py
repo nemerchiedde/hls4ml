@@ -892,7 +892,6 @@ class Transpose(Layer):
 
         return self._config_template.format(**params)
 
-
 class Lstm(Layer):
     def initialize(self):
         #Output data definitions
@@ -913,7 +912,6 @@ class Lstm(Layer):
           self.add_weights_variable(name='bias_%s'% weight_types [i], var_name='bias_%s_{index}' % weight_types [i], data=data3[i*self.get_attr('n_in'):(i+1)*(self.get_attr('n_in'))], quantizer=self.get_attr('weight_quantizer'), compression=None)
 
 
-
     def function_cpp(self):
         params = self._default_function_params()
         params['weights']=""
@@ -932,8 +930,6 @@ class Lstm(Layer):
         params['n_timestamp'] = self.get_attr('n_timestamp')
 
         return self._config_template.format(**params)
-
-
 
 
 layer_map = {
