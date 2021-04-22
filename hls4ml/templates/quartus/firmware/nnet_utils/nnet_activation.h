@@ -101,20 +101,25 @@ void  sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
     #include "activation_tables/sigmoid_table.tb"
     // Index into the lookup table based on data
+    ac_fixed<32, 16, true> min = -8.0;
+    ac_fixed<32, 16, true> max = 8.0;
     #pragma unroll
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        if (data[ii] < -8) {
+        if (data[ii] < min) {
             res[ii] = 0;
             continue;
         }
-        if (data[ii] > 8) {
+        if (data[ii] > max) {
             res[ii] = 1;
             continue;
         }
 
-        int index = ((data[ii] + 8.0)/(16.0)*(CONFIG_T::table_size)).to_int();
+        ac_fixed<32, 16, true> scaling = (data[ii] - min)/(max - min);
+        int index = (scaling*((ac_fixed<32, 16, true>)1024)).to_int();
+
         res[ii] = (res_T) sigmoid_table[index];
     }
+
 }
 
 // *************************************************
@@ -172,20 +177,25 @@ void  dense_tanh(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
     // Initialize the lookup table
     #include "activation_tables/tanh_table.tb"
     // Index into the lookup table based on data
+    ac_fixed<32, 16, true> min = -8.0;
+    ac_fixed<32, 16, true> max = 8.0;
     #pragma unroll
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        if (data[ii] < -8) {
+        if (data[ii] < min) {
             res[ii] = -1;
             continue;
         }
-        if (data[ii] > 8) {
+        if (data[ii] > max) {
             res[ii] = 1;
             continue;
         }
 
-        int index = ((data[ii] + 8.0)/(16.0)*(CONFIG_T::table_size)).to_int();
-        res[ii] = (res_T) sigmoid_table[index];
+        ac_fixed<32, 16, true> scaling = (data[ii] - min)/(max - min);
+        int index = (scaling*((ac_fixed<32, 16, true>)1024)).to_int();
+        
+        res[ii] = (res_T) tanh_table[index];
     }
+
 }
 
 // *************************************************
