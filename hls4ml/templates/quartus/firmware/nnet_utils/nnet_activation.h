@@ -112,7 +112,7 @@ void  sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
             continue;
         }
 
-        int index = ((data[ii] + 8)/(16)*(CONFIG_T::table_size)).to_int();
+        int index = ((data[ii] + 8.0)/(16.0)*(CONFIG_T::table_size)).to_int();
         res[ii] = (res_T) sigmoid_table[index];
     }
 }
@@ -183,7 +183,7 @@ void  dense_tanh(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
             continue;
         }
 
-        int index = ((data[ii] + 8)/(16)*(CONFIG_T::table_size)).to_int();
+        int index = ((data[ii] + 8.0)/(16.0)*(CONFIG_T::table_size)).to_int();
         res[ii] = (res_T) sigmoid_table[index];
     }
 }
