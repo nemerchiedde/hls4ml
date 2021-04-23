@@ -1,8 +1,14 @@
 
-outFile = open ("data_hls4lformat.txt","w")
+outFile = open ("data_new.txt","w")
 
-with open('data.txt', 'r') as fp:
-    for line in fp:
+data = []
+
+with open('data_lauri.txt', 'r') as fp:
+    for idx, line in enumerate(fp):
       line=line.replace("\n","")
-      data=(float(line)/16)
-      outFile.write("{} {} {} {} {}\n".format(data,data,data,data,data) )
+      data.append(str(float(line)/16))
+
+      if idx >= 4:
+
+          outFile.write("{}\n".format(" ".join(data)) )
+          data.pop(0)

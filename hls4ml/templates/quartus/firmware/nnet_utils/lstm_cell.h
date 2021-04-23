@@ -24,7 +24,7 @@ using namespace ihc;
 
 struct lstm_config : public nnet::activ_config{
  static const unsigned n_in=10;
- static const unsigned n_timestamp=10;
+ static const unsigned n_timestamp=5;
 
  typedef ac_fixed<16,6,true> weight_t;
 };
@@ -78,7 +78,7 @@ void add_bias(data_T *inputs,const WEIGHT_T *bias) {
 
 }
 template<class data_T, class res_T, typename CONFIG_T>
-void multiply_vectors(data_T *in1, data_T *in2, res_T out[]) {
+void multiply_vectors(data_T *in1, data_T *in2, res_T *out) {
     MULTIPLY_VECT_LOOP:
     #pragma unroll
     for (int i = 0; i < CONFIG_T::n_in; i++) {
@@ -108,7 +108,7 @@ void lstm_cell(
           WEIGHT_T *BI   , WEIGHT_T *BF   , WEIGHT_T *BC   , WEIGHT_T *BO);
 
 template<class data_T, class res_T,class CONFIG_T ,class WEIGHT_T>
-//lstm_network - verification
+
 void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
           const WEIGHT_T *WI   , const WEIGHT_T *WF   , const WEIGHT_T *WC   , const WEIGHT_T *WO  ,
           const WEIGHT_T *RWI  , const WEIGHT_T *RWF  , const WEIGHT_T *RWC  , const WEIGHT_T *RWO ,
@@ -135,16 +135,6 @@ void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
 
   //input0 - verification
 
-  //for (int j=CONFIG_T::n_timestamp-1;j>0; j--){
-  //  inputs[j] = inputs[j-1];
-  //}
-  //inputs[0]=input0;
-  //printf( typeid(&inputs).name(), "inputs");
-  //std::cout << typeid(&input0).name()<<"input0"<<std::endl;
-  //for (int j=0; j<CONFIG_T::n_timestamp; j++){
-  //  inputs[j] = input0[j];
-  //}
-
 
 
   #pragma unroll TIMESTAMP_UNROLLING
@@ -154,7 +144,7 @@ void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
       hidden_state_temp[x] = hidden_state[x][i];
       cell_state_temp[x]   = cell_state[x][i];
     }
-    lstm_cell<data_T,CONFIG_T,WEIGHT_T>(hidden_state_temp,h,cell_state_temp,c,inputs[CONFIG_T::n_timestamp -1 -i ],WI,WF,WC,WO,RWI,RWF,RWC,RWO,BI,BF,BC,BO);
+    lstm_cell<data_T,CONFIG_T,WEIGHT_T>(hidden_state_temp,h,cell_state_temp,c,inputs[i],WI,WF,WC,WO,RWI,RWF,RWC,RWO,BI,BF,BC,BO);
     #pragma unroll
     for (int x = 0; x < CONFIG_T::n_in; x++) {
       hidden_state[x][i+1]=h[x];
@@ -162,10 +152,26 @@ void lstm_network(data_T input0,res_T res[CONFIG_T::n_out],
     }
   }
   #pragma unroll
-  //output - verification
-  for (int x = 0; x < CONFIG_T::n_in; x++) {
-    res[x]= hidden_state[x][CONFIG_T::n_timestamp];
+
+
+/*
+  #ifndef HLS_SYNTHESIS
+    for (int i=0; i<CONFIG_T::n_timestamp+1; i++){
+      std::cout<< "hidden state for time " << i << " is : ";
+    for (int j=0; j<CONFIG_T::n_in; j++){
+
+      //for (int j=0; j<5; j++){
+        std::cout <<hidden_state[j][i].to_double()<< ", ";
+      //}
   }
+
+    std::cout<<std::endl;
+}
+  #endif*/
+
+  //output - verification
+
+
 
   /* DENSE LAYER
   fixed_p output = 0;
@@ -222,7 +228,7 @@ void lstm_cell(
 
 
         //Weight multiplication
-         multiply_W<data_T,datMakefilea_T,CONFIG_T,WEIGHT_T>(inputs, x_i,WI);
+         multiply_W<data_T,data_T,CONFIG_T,WEIGHT_T>(inputs, x_i,WI);
          multiply_W<data_T,data_T,CONFIG_T,WEIGHT_T>(inputs, x_f,WF);
          multiply_W<data_T,data_T,CONFIG_T,WEIGHT_T>(inputs, x_c,WC);
          multiply_W<data_T,data_T,CONFIG_T,WEIGHT_T>(inputs, x_o,WO);
@@ -263,14 +269,9 @@ void lstm_cell(
         for (int x = 0; x < CONFIG_T::n_in; x++) {
           hidden_state_o[x]=h[x];
           cell_state_o[x]=c[x];
-          #ifndef HLS_SYNTHESIS
-          //printf("Hugo : % ",hidden_state_o[x]);
-          //std::cout<<"HU"<<cell_state_o[x]<<std::endl;
-          #endif
         }
-        //graph(hidden_state_o);
+
         return;
 
-  //std::cout<<"hugoooo"<<std::endl;
 }
 #endif

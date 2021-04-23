@@ -117,6 +117,7 @@ def parse_default_keras_layer(keras_layer, input_names):
 
     if 'activation' in keras_layer['config']:
         layer['activation'] = keras_layer['config']['activation']
+        
 
     if 'epsilon' in keras_layer['config']:
         layer['epsilon'] = keras_layer['config']['epsilon']
@@ -176,7 +177,7 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
     output_layers = None
 
     layer_config = None
-    layer_activation = []
+    #layer_activation = []
 
     if model_arch['class_name'] == 'Sequential':  #model_arch contem o json   #Entra!
         print('Interpreting Sequential')
@@ -213,6 +214,7 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
             if 'recurrent_activation' in keras_layer['config']:
                 layer_rec_activation = keras_layer['config']['recurrent_activation']  #Recupera recurrent_activation da LSTM
                 return_sequences = keras_layer['config']['return_sequences']
+                sliding_window = keras_layer['config']['sliding_window']
                 #print('rec_activation',layer_rec_activation)
                 print('keras_to_hls(220) - return_sequences: ',return_sequences)
         else:
@@ -291,8 +293,8 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
             #print('nemer chiedde')
             #print('layer list 1', layer_list[1]['activation']) #recurrent_activation
 
-            layer_activation.append(layer_list[1]['activation'])
-            layer_activation.append(layer_list[2]['activation'])
+            #layer_activation.append(layer_list[1]['activation'])
+            #layer_activation.append(layer_list[2]['activation'])
             #print(layer_activation)
             #print (layer_rec_activation)
             activation_type.append(layer_list[1]['activation'])
@@ -319,7 +321,7 @@ def keras_to_hls(config): #__init__.py et a config vem do yml
     print("keras_to_hls(326) - layer_list: ", layer_list)
     print("keras_to_hls(325) - output_layers: ", output_layers)
     print('keras_to_hls(326) - input_layer: ', input_layers)
-    hls_model = HLSModel(config, reader, activation_type, return_sequences, layer_list, input_layers, output_layers)
+    hls_model = HLSModel(config, reader, activation_type, return_sequences, sliding_window, layer_list, input_layers, output_layers)
     plot = plot_model(hls_model)
     print('HLS_MODEL: ', hls_model)
     print('**Input_Layers**', input_layers)

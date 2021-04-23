@@ -241,7 +241,7 @@ class HLSConfig(object):
         self.backend.validate_hls(self)
 
 class HLSModel(object):
-    def __init__(self, config, data_reader, activation_type, return_sequences, layer_list, inputs=None, outputs=None):
+    def __init__(self, config, data_reader, activation_type, return_sequences, sliding_window, layer_list, inputs=None, outputs=None):
         self.config = HLSConfig(config)
         self.backend = get_backend(config.get('Backend', 'Vivado'))
         self.reader = data_reader
@@ -263,6 +263,7 @@ class HLSModel(object):
         self.batch_input = layer_list[1]['input_shape']
         self.activation_type = activation_type
         self.return_sequences = return_sequences
+        self.sliding_window = sliding_window
 
     def _make_graph(self, layer_list):  ##Aqui que gera os layers input output
         for layer in layer_list:

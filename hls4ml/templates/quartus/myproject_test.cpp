@@ -53,10 +53,10 @@ bool nextToken(const std::string& str, std::size_t& pos, float& val)
 int main(int argc, char **argv)
 {
   //load input data from text file
-  std::ifstream fcount("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/tb_input_features.dat");
-  std::ifstream fin("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/tb_input_features.dat");
+  std::ifstream fcount("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/data_new.txt");
+  std::ifstream fin("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/data_new.txt");
   //load predictions from text file
-  std::ifstream fpr("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/tb_output_predictions.dat");
+  std::ifstream fpr("/atlas/chiedde/Documents/CPPM_Nemer/cppm-nnlar/hls4ml/quartus-test-cppm/tb_data/true_lauri.txt");
   std::cout << "Openning files for simulations" << std::endl;
 
   std::string RESULTS_LOG = "tb_data/results_test.log";
@@ -64,15 +64,14 @@ int main(int argc, char **argv)
 
   std::string iline;
   std::string pline;
+
   int e = 0;
-  int num_iterations = 10;
-  //int num_iterations = std::count(std::istreambuf_iterator<char>(fcount),
-  //                 std::istreambuf_iterator<char>(), '\n');
+
+  int num_iterations = 1000;
+  //std::count(std::istreambuf_iterator<char>(fcount), std::istreambuf_iterator<char>(), '\n');
   //int num_iterations = std::count(std::istreambuf_iterator<char>(fin),
   //                 std::istreambuf_iterator<char>(), '\n');
-
   if (fin.is_open() && fpr.is_open()) {
-     std::cout << "/* message entra? */" << std::endl;
     //hls-fpga-machine-learning insert component-io
     std::vector<std::vector<float>> pr(num_iterations,std::vector<float>());
     while ( std::getline(fin,iline) && std::getline (fpr,pline) ) {
@@ -80,40 +79,23 @@ int main(int argc, char **argv)
       char* cstr=const_cast<char*>(iline.c_str());
       char* current;
       std::vector<float> in;
-      std::vector<float> pr;
-      float current;
-
-      // // stringstream not supported in cosim
-      // std::istringstream iss(iline);
-      // while(iss >> current) {
-      //   in.push_back(current);
-      // }
-
-      // std::istringstream pss(pline);
-      // while(pss >> current) {
-      //   pr.push_back(current);
-      // }
-
-      std::size_t pos = 0;
-      while(nextToken(iline, pos, current)) {
-	in.push_back(current);
+      current=strtok(cstr," ");
+      while(current!=NULL) {
+        in.push_back(atof(current));
+        current=strtok(NULL," ");
       }
+      cstr=const_cast<char*>(pline.c_str());
 
-      pos = 0;
-      while(nextToken(pline, pos, current)) {
-	pr.push_back(current);
+      current=strtok(cstr," ");
+      while(current!=NULL) {
+        pr[e].push_back(atof(current));
+        current=strtok(NULL," ");
       }
 
       //hls-fpga-machine-learning insert data
-      predictions.push_back(std::move(pr));
-    }
-
-    // Do this separately to avoid vector reallocation
-    //hls-fpga-machine-learning insert top-level-function
-
-    //hls-fpga-machine-learning insert run
 
       e++;
+      if (num_iterations == e) break;
       //hls-fpga-machine-learning insert top-level-function
     for(int j = 0; j < e; j++) {
       //hls-fpga-machine-learning insert tb-output
@@ -127,14 +109,12 @@ int main(int argc, char **argv)
     fin.close();
     fpr.close();
   } else {
-    const unsigned int num_iterations = 10;
+    num_iterations = 10;
     std::cout << "INFO: Unable to open input/predictions file, using default input with " << num_iterations << " invocations." << std::endl;
     //hls-fpga-machine-learning insert zero
 
-    //hls-fpga-machine-learning insert top-level-function
-
-    //hls-fpga-machine-learning insert run
-    //CHECK HERE
+    for (int i = 0; i < num_iterations; i++) {
+      //hls-fpga-machine-learning insert second-top-level-function
 
       for (int j = 0; j < num_iterations; j++) {
         //hls-fpga-machine-learning insert output

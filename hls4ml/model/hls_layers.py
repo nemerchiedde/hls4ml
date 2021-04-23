@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from collections import OrderedDict
-sliding_window  = True
+
 class Quantizer(object):
     def __init__(self, bits, hls_type):
         self.bits = bits
@@ -944,10 +944,9 @@ class Lstm(Layer):
     def function_cpp(self):
         params = self._default_function_params()
          #if self.model.return_sequence:
-        if sliding_window :
+        if self.model.sliding_window:
             params['input'] = params['input'] + '[0]'
-        else:
-            params['input'] = params['input']
+
         print("hls_layer(935) - params : ", params)
         print('hls_model(369) -get_output ', [i.shape for i in self.model.get_output_variables()])
         print("hls_layers(937) - lstm_input: ", params['input'])
