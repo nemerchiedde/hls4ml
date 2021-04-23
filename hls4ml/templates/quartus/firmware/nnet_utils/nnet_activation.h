@@ -31,7 +31,7 @@ struct activ_config
     static const unsigned n_in = 10;
 
     // Internal info
-    static const unsigned table_size = 512;
+    static const unsigned table_size = 1024;
 
     // Resource reuse info
     static const unsigned io_type = io_parallel;
@@ -101,25 +101,14 @@ void  sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
     #include "activation_tables/sigmoid_table.tb"
     // Index into the lookup table based on data
-    ac_fixed<32, 16, true> min = -8.0;
-    ac_fixed<32, 16, true> max = 8.0;
     #pragma unroll
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        if (data[ii] < min) {
-            res[ii] = 0;
-            continue;
-        }
-        if (data[ii] > max) {
-            res[ii] = 1;
-            continue;
-        }
-
-        ac_fixed<32, 16, true> scaling = (data[ii] - min)/(max - min);
-        int index = (scaling*((ac_fixed<32, 16, true>)1024)).to_int();
-
+        int data_round = (data[ii]*(CONFIG_T::table_size/16)).to_int();
+        int index = data_round + 8*CONFIG_T::table_size/16;
+        if (index < 0)   index = 0;
+        if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
         res[ii] = (res_T) sigmoid_table[index];
     }
-
 }
 
 // *************************************************
@@ -128,44 +117,44 @@ void  sigmoid(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 template<class data_T, class res_T, typename CONFIG_T>
 void  softmax(  data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
-    #include "activation_tables/exp_table.tb"
-    #include "activation_tables/invert_table.tb"
+  #include "activation_tables/exp_table.tb"
+  #include "activation_tables/invert_table.tb"
 
-    hls_register int data_round[CONFIG_T::n_in];
-    New_loop:
-    #pragma unroll
-    for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        data_round[ii] = (data[ii] * (CONFIG_T::table_size/16)).to_int();
-    }
-    NN_Outer:
-    #pragma unroll
-    for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        typename CONFIG_T::exp_table_t exp_res_temp = 0;
-        NN_Inner:
-        #pragma unroll
-        for (int jj=0; jj<CONFIG_T::n_in; jj++)
-        {
-            if (ii==jj)
-            {
-                exp_res_temp += 1;
-            }
-            else
-            {
-                int _data_cache = (data_round[jj]-data_round[ii]);
-                int index = _data_cache + 8*CONFIG_T::table_size/16;
+  hls_register int data_round[CONFIG_T::n_in];
+  New_loop:
+  #pragma unroll
+  for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+      data_round[ii] = (data[ii] * (CONFIG_T::table_size/16)).to_int();
+  }
+  NN_Outer:
+  #pragma unroll
+  for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+      typename CONFIG_T::exp_table_t exp_res_temp = 0;
+      NN_Inner:
+      #pragma unroll
+      for (int jj=0; jj<CONFIG_T::n_in; jj++)
+      {
+          if (ii==jj)
+          {
+              exp_res_temp += 1;
+          }
+          else
+          {
+              int _data_cache = (data_round[jj]-data_round[ii]);
+              int index = _data_cache + 8*CONFIG_T::table_size/16;
 
-                if (index < 0)   index = 0;
-                if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+              if (index < 0)   index = 0;
+              if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
 
-                typename CONFIG_T::exp_table_t temp_exp = exp_table[index];
-                exp_res_temp += temp_exp;
-            }
-        }
-        int exp_res_index = (exp_res_temp * CONFIG_T::table_size/64).to_int();
-        if (exp_res_index < 0)   exp_res_index = 0;
-        if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
-        res[ii] = invert_table[exp_res_index];
-    }
+              typename CONFIG_T::exp_table_t temp_exp = exp_table[index];
+              exp_res_temp += temp_exp;
+          }
+      }
+      int exp_res_index = (exp_res_temp * CONFIG_T::table_size/64).to_int();
+      if (exp_res_index < 0)   exp_res_index = 0;
+      if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
+      res[ii] = invert_table[exp_res_index];
+  }
 }
 
 // *************************************************
@@ -177,25 +166,15 @@ void  dense_tanh(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
     // Initialize the lookup table
     #include "activation_tables/tanh_table.tb"
     // Index into the lookup table based on data
-    ac_fixed<32, 16, true> min = -8.0;
-    ac_fixed<32, 16, true> max = 8.0;
     #pragma unroll
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        if (data[ii] < min) {
-            res[ii] = -1;
-            continue;
-        }
-        if (data[ii] > max) {
-            res[ii] = 1;
-            continue;
-        }
-
-        ac_fixed<32, 16, true> scaling = (data[ii] - min)/(max - min);
-        int index = (scaling*((ac_fixed<32, 16, true>)1024)).to_int();
-        
+        ac_int<16> data_round = (data[ii]*(CONFIG_T::table_size/8)).to_int();
+        ac_int<16> index = data_round +  4*CONFIG_T::table_size/8;
+        //std::cout << "Input: "  << data[ii] << " Round: " << data_round << " Index: " << index << std::endl;
+        if (index < 0)   index = 0;
+        if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
         res[ii] = (res_T) tanh_table[index];
     }
-
 }
 
 // *************************************************
@@ -307,7 +286,7 @@ void  elu(data_T data[CONFIG_T::n_in], const res_T alpha, res_T res[CONFIG_T::n_
 template<class data_T, class res_T, typename CONFIG_T>
 void elu(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
-    elu<data_T, res_T, CONFIG_T>(data, 1.0, res);
+	elu<data_T, res_T, CONFIG_T>(data, 1.0, res);
 }
 
 // *************************************************
@@ -369,19 +348,18 @@ void  binary_tanh(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 template<class data_T, class res_T, typename CONFIG_T>
 void  ternary_tanh(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
-    #pragma unroll
-    for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        data_T datareg = 2*data[ii];
-        res_T cache;
-        if( datareg > 1 ) cache = 1;
-        else if( datareg > -1 && datareg <= 1) cache=0;
-        else cache = -1;
+  #pragma unroll
+  for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+    data_T datareg = 2*data[ii];
+    res_T cache;
+    if( datareg > 1 ) cache = 1;
+    else if( datareg > -1 && datareg <= 1) cache=0;
+    else cache = -1;
 
-        res[ii] = (res_T) cache;
-    }
+    res[ii] = (res_T) cache;
+  }
 }
 
 }
 
 #endif
-        // int index = data_round + 8*CONFIG_T::table_size/16;
